@@ -166,7 +166,7 @@ This application bundles or relies on several third-party components, each under
 Models
 
 Moira.AI GreekTTS-1.5 (the Greek LoRA adapter) — licensed under Apache License 2.0. See the model card. Cite as @misc{moira2025greektts15} per the citation block on the model page.
-Orpheus 3B (canopylabs/orpheus-3b-0.1-ft) — the base TTS LLM, licensed under Apache License 2.0. See the model card. The card carries an explicit Model Misuse clause prohibiting impersonation without consent, misinformation or deception (including fake news or fraudulent calls), and any illegal or harmful activity. This is directly relevant for telephony deployments — read it before using this app in production.
+Orpheus 3B (canopylabs/orpheus-3b-0.1-ft) - the base TTS LLM, licensed under Apache License 2.0. See the model card. The card carries an explicit Model Misuse clause prohibiting impersonation without consent, misinformation or deception (including fake news or fraudulent calls), and any illegal or harmful activity. This is directly relevant for telephony deployments — read it before using this app in production.
 unsloth/orpheus-3b-0.1-ft — the 4-bit quantized variant we actually load. Same Apache 2.0 license inherited from canopylabs. See the unsloth fork.
 Meta Llama 3.2 3B — Orpheus is a fine-tune of Llama 3.2 3B Instruct, so the Llama 3.2 Community License flows through to anything derived from it, including this app. Key points: free commercial use is granted royalty-free, BUT (1) you must comply with Meta's Acceptable Use Policy which forbids deceptive/fraudulent practices, (2) you must include the attribution string "Llama 3.2 is licensed under the Llama 3.2 Community License, Copyright © Meta Platforms, Inc. All Rights Reserved." in distributions, and (3) organizations whose products exceed 700 million monthly active users must obtain a separate license from Meta. The MAU threshold is irrelevant for typical Greek call-center deployments but worth knowing exists.
 SNAC vocoder (hubertsiuzdak/snac_24khz) — licensed under MIT License. See the model card and the SNAC paper.
@@ -191,8 +191,6 @@ Meta's Llama 3.2 Acceptable Use Policy (no deception, no fraud, no impersonation
 Canopy Labs' Orpheus Misuse clause (substantially the same prohibitions as Meta's AUP — see the model card).
 Llama 3.2 attribution requirement (include the attribution string above in any distribution).
 The standard requirements of Apache 2.0 (preserve copyright notices, state any modifications to the underlying models if you distribute them).
-
-If your deployment is large-scale, regulated (banking, health, debt collection), or subject to additional public-sector requirements, have a lawyer review each linked license. None of this section is legal advice.
 
 ---
 
