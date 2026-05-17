@@ -103,12 +103,25 @@ jobs:
         run: |
           $version = if ($env:GITHUB_REF -like "refs/tags/*") { $env:GITHUB_REF -replace "refs/tags/", "" } else { "dev-$($env:GITHUB_SHA.Substring(0,7))" }
           $zipName = "GreekTTS-windows-$version.zip"
-          Compress-Archive -Path dist\GreekTTS\* -DestinationPath $zipName
+
+          # Stage the release layout in a temp folder so setup.cmd ends up
+          # at the top level of the zip alongside the GreekTTS folder.
+          $stageDir = "release-stage"
+          New-Item -ItemType Directory -Path $stageDir | Out-Null
+          Copy-Item -Recurse "dist\GreekTTS" "$stageDir\GreekTTS"
+          Copy-Item "setup.cmd" "$stageDir\setup.cmd"
+          if (Test-Path "INSTALL-WINDOWS.md") {
+            Copy-Item "INSTALL-WINDOWS.md" "$stageDir\INSTALL-WINDOWS.md"
+          }
+          if (Test-Path "README.md") {
+            Copy-Item "README.md" "$stageDir\README.md"
+          }
+
+          Compress-Archive -Path "$stageDir\*" -DestinationPath $zipName
           Write-Host "Created $zipName"
           Write-Host "Zip size:"
           $size = (Get-Item $zipName).Length / 1MB
           Write-Host "$([math]::Round($size, 1)) MB"
-          # Expose to later steps
           echo "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
 
       # ----- Upload as CI artifact (every build) -----

@@ -27,11 +27,34 @@ release. If you're a developer building from source, see the main README.
 
 ## Installation
 
-1. **Download** `GreekTTS-windows-*.zip` from the [Releases page](../../releases).
-2. **Extract** the zip to a permanent folder — for example `C:\Program Files\GreekTTS` or `C:\Users\<you>\GreekTTS`. Avoid extracting to your Downloads or Desktop folder.
-3. **Double-click `GreekTTS.exe`** to launch.
+### The easy way (recommended)
 
-That's it. No installer wizard, no admin rights required (unless you extract to `C:\Program Files`).
+1. **Download** `GreekTTS-windows-*.zip` from the [Releases page](../../releases).
+2. **Extract** the zip to a permanent folder — for example `C:\GreekTTS`. Avoid Downloads or Desktop.
+3. **Double-click `setup.cmd`** at the top of the extracted folder.
+   - The script installs ffmpeg automatically, installs Python if needed, and downloads the ~2.5 GB of model files.
+   - Total time: 10–20 minutes depending on your network.
+   - If something fails partway, just run `setup.cmd` again — it resumes from where it stopped.
+4. When setup is done, **double-click `GreekTTS\GreekTTS.exe`** to launch the app.
+
+That's it. The first launch will be ready immediately because everything is already installed.
+
+### The manual way
+
+If `setup.cmd` doesn't work for your environment (locked-down corporate machine, no winget, no internet on the target machine):
+
+1. **Install ffmpeg manually:**
+   - Download the latest Windows build from [ffmpeg.org/download.html](https://ffmpeg.org/download.html). The "essentials" build from gyan.dev or BtbN is fine.
+   - Extract to a permanent location, e.g. `C:\ffmpeg`.
+   - Add `C:\ffmpeg\bin` to your system PATH:
+     - `Win + R` → type `sysdm.cpl` → Enter.
+     - "Advanced" tab → "Environment Variables".
+     - Under "System variables", find `Path`, click "Edit", "New", paste `C:\ffmpeg\bin`, OK.
+   - Open a fresh Command Prompt and run `ffmpeg -version` to confirm.
+
+2. **Launch `GreekTTS.exe`.** The first time, it will show a dialog asking to download ~2.5 GB of model files. Click OK and wait 5–15 minutes.
+
+3. For air-gapped machines, the models live in `%USERPROFILE%\.cache\huggingface\hub\`. Copy that folder from a connected machine to the same path on the target.
 
 ---
 
