@@ -1,2 +1,37 @@
 __pycache__
 *.pyc
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.python-version
+
+# --- App runtime ---
+# User config — should not be committed (contains local paths)
+config.json
+# Downloaded model files
+models/
+# Saved audio output
+output/
+# Unsloth runtime code generation
+unsloth_compiled_cache/
+
+# --- PyInstaller build outputs ---
+build/
+dist/
+*.spec.bak
+
+# --- IDE / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Test outputs ---
+test_moira_output.wav
+*.tmp
