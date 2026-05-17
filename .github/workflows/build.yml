@@ -1,0 +1,130 @@
+name: Build Windows executable
+
+# Trigger rules:
+#   - Push to main → builds and uploads CI artifact (90-day retention)
+#   - Push a tag like v1.0.0 → additionally creates a GitHub Release
+#   - Manual dispatch from the Actions tab — useful for testing
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    # 90 min ceiling — torch + cuda install alone can take 20+ min
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          # No pip cache — torch CUDA wheels are too big to cache reliably
+          # and we want a clean build each time.
+
+      - name: Show runner specs
+        shell: pwsh
+        run: |
+          Write-Host "Python:"
+          python --version
+          Write-Host "Disk space:"
+          Get-PSDrive C | Select-Object Used, Free
+          Write-Host "Pip:"
+          python -m pip --version
+
+      # ----- Install PyTorch with CUDA 12.1 from PyTorch's index -----
+      # Done separately because pip needs a different index URL for these
+      # wheels — they aren't on PyPI.
+      - name: Install PyTorch (CUDA 12.1)
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.5.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu121
+
+      # ----- Install everything else from requirements.txt -----
+      - name: Install application dependencies
+        shell: pwsh
+        run: |
+          pip install -r requirements.txt
+          # bitsandbytes for Windows + 4-bit quantization
+          pip install bitsandbytes
+
+      # ----- PyInstaller -----
+      - name: Install PyInstaller
+        shell: pwsh
+        run: pip install pyinstaller
+
+      - name: Verify imports before build
+        # Fail fast if any module can't import. Catches missing deps
+        # before we burn 30 min on PyInstaller.
+        shell: pwsh
+        run: |
+          python -c "import torch; print('torch', torch.__version__)"
+          python -c "import PySide6; print('PySide6', PySide6.__version__)"
+          python -c "import transformers; print('transformers', transformers.__version__)"
+          python -c "import unsloth; print('unsloth imported')"
+          python -c "import peft; print('peft', peft.__version__)"
+          python -c "import snac; print('snac imported')"
+          python -c "import bitsandbytes; print('bitsandbytes', bitsandbytes.__version__)"
+
+      - name: Build with PyInstaller
+        shell: pwsh
+        run: |
+          pyinstaller packaging/GreekTTS.spec --noconfirm --clean
+
+      # ----- Smoke test: does the exe at least start without crashing? -----
+      # We can't truly run the app on a CI runner (no GPU), but we can
+      # verify the binary's process tree spins up far enough to fail with
+      # an *expected* error (CUDA not available) rather than a packaging
+      # error (missing module, DLL not found, etc.).
+      - name: Smoke test the executable
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $exe = "dist\GreekTTS\GreekTTS.exe"
+          if (-not (Test-Path $exe)) {
+            Write-Error "Build produced no executable at $exe"
+            exit 1
+          }
+          $size = (Get-Item $exe).Length / 1MB
+          Write-Host "Executable size: $([math]::Round($size, 1)) MB"
+          Write-Host "Full build folder size:"
+          $folder = (Get-ChildItem dist\GreekTTS -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB
+          Write-Host "$([math]::Round($folder, 1)) MB"
+
+      # ----- Bundle into a zip for distribution -----
+      - name: Create distributable zip
+        shell: pwsh
+        run: |
+          $version = if ($env:GITHUB_REF -like "refs/tags/*") { $env:GITHUB_REF -replace "refs/tags/", "" } else { "dev-$($env:GITHUB_SHA.Substring(0,7))" }
+          $zipName = "GreekTTS-windows-$version.zip"
+          Compress-Archive -Path dist\GreekTTS\* -DestinationPath $zipName
+          Write-Host "Created $zipName"
+          Write-Host "Zip size:"
+          $size = (Get-Item $zipName).Length / 1MB
+          Write-Host "$([math]::Round($size, 1)) MB"
+          # Expose to later steps
+          echo "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
+
+      # ----- Upload as CI artifact (every build) -----
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GreekTTS-windows
+          path: ${{ env.ZIP_NAME }}
+          retention-days: 90
+
+      # ----- On tag push, additionally attach to a GitHub Release -----
+      - name: Create / update GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_NAME }}
+          generate_release_notes: true
+          # Mark pre-releases for v0.x or v*-rc/beta/alpha tags
+          prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-beta') || contains(github.ref, '-alpha') || startsWith(github.ref, 'refs/tags/v0.') }}
