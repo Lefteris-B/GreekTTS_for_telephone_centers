@@ -1,0 +1,10 @@
+PySide6>=6.6
+transformers>=4.45
+unsloth
+peft
+snac
+huggingface_hub
+# Note: torch and torchaudio must be installed separately to match your CUDA version.
+# Note: bitsandbytes is needed for 4-bit quantization. unsloth usually pulls it in;
+# if not, run: pip install bitsandbytes
+# See README.md for the correct install command for your hardware.
