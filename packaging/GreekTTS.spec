@@ -18,8 +18,9 @@ from pathlib import Path
 
 block_cipher = None
 
-# Project root = where this spec file lives
-PROJECT_ROOT = Path(SPECPATH).resolve()
+# Project root = the parent of the folder this spec lives in.
+# This spec is in packaging/, so PROJECT_ROOT is one level up.
+PROJECT_ROOT = Path(SPECPATH).resolve().parent
 
 # Hidden imports: modules PyInstaller can't find by static analysis.
 # These are needed because the heavy ML libs use dynamic imports.
@@ -58,7 +59,7 @@ datas = []
 binaries = []
 
 a = Analysis(
-    ["app.py"],
+    [str(PROJECT_ROOT / "app.py")],
     pathex=[str(PROJECT_ROOT)],
     binaries=binaries,
     datas=datas,
