@@ -2,9 +2,9 @@
 TTS engine: Moira.AI GreekTTS-1.5 pipeline.
 
 Loads three components:
-  1. unsloth/orpheus-3b-0.1-ft   — base Orpheus LLM (loaded in 4-bit)
-  2. moiralabs/GreekTTS-1.5      — Greek LoRA adapter on top of Orpheus
-  3. hubertsiuzdak/snac_24khz    — SNAC neural codec (audio decoder)
+  1. unsloth/orpheus-3b-0.1-ft   - base Orpheus LLM (loaded in 4-bit)
+  2. moiralabs/GreekTTS-1.5      - Greek LoRA adapter on top of Orpheus
+  3. hubertsiuzdak/snac_24khz    - SNAC neural codec (audio decoder)
 
 Synthesis pipeline:
   text → tokenize → wrap with special tokens → autoregressive generation
@@ -48,7 +48,7 @@ START_OF_SPEECH_MARKER = 128257
 AUDIO_TOKEN_OFFSET = 128266
 SNAC_OUTPUT_RATE = 24000
 
-# Telephony format presets — passed straight to ffmpeg.
+# Telephony format presets - passed straight to ffmpeg.
 FORMATS = {
     "alaw_8k":   {"label": "A-law 8 kHz mono (European telephony)",       "ar": "8000",  "codec": "pcm_alaw"},
     "ulaw_8k":   {"label": "μ-law 8 kHz mono (North American telephony)", "ar": "8000",  "codec": "pcm_mulaw"},
@@ -83,7 +83,7 @@ class GreekTTSEngine:
             )
 
         # Defer heavy imports so the GUI can launch even if these libs are
-        # broken — surface the error from the worker thread, not at app start.
+        # broken - surface the error from the worker thread, not at app start.
         try:
             import torch
             from unsloth import FastLanguageModel
@@ -137,7 +137,7 @@ class GreekTTSEngine:
         # Switch model to inference mode (Unsloth's optimized path)
         FastLanguageModel.for_inference(model)
 
-        # ─── Tokenizer (from base model — has the speech special tokens) ───
+        # ─── Tokenizer (from base model - has the speech special tokens) ───
         try:
             tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
         except Exception as e:
@@ -177,7 +177,7 @@ class GreekTTSEngine:
 
         Generation is sampled (non-deterministic). Pass `seed` to reproduce
         a specific run. `max_new_tokens=1200` corresponds to roughly 8–10
-        seconds of audio — long enough for typical IVR prompts.
+        seconds of audio - long enough for typical IVR prompts.
         """
         if not text.strip():
             raise TTSEngineError("Δεν υπάρχει κείμενο προς μετατροπή.")

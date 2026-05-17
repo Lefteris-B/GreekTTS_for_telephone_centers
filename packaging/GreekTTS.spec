@@ -1,12 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller spec for Greek TTS — Windows build.
+PyInstaller spec for Greek TTS - Windows build.
 
 Notes:
   - One-folder build (not one-file): startup is much faster, antivirus
     is much less likely to flag the result, and unsloth's runtime
     code generation needs a writable working directory anyway.
-  - We avoid bundling Hugging Face model weights — they auto-download
+  - We avoid bundling Hugging Face model weights - they auto-download
     to the user's HF cache on first launch and are reused thereafter.
   - Bundling CUDA libraries: torch's CUDA .dll files are huge but
     required. They live under site-packages\\torch\\lib and are picked
@@ -27,7 +27,7 @@ PROJECT_ROOT = Path(SPECPATH).resolve().parent
 hidden_imports = [
     # PySide6 multimedia plugins
     "PySide6.QtMultimedia",
-    # transformers + tokenizers — lots of dynamic loading
+    # transformers + tokenizers - lots of dynamic loading
     "transformers",
     "transformers.models.llama",
     "transformers.models.llama.modeling_llama",
@@ -36,26 +36,26 @@ hidden_imports = [
     # unsloth and unsloth_zoo (the latter is imported indirectly)
     "unsloth",
     "unsloth_zoo",
-    # peft — adapter loading uses runtime imports
+    # peft - adapter loading uses runtime imports
     "peft",
     "peft.tuners.lora",
-    # bitsandbytes — 4-bit quantization, has native .so/.dll
+    # bitsandbytes - 4-bit quantization, has native .so/.dll
     "bitsandbytes",
-    # snac — vocoder, small but uses dynamic config
+    # snac - vocoder, small but uses dynamic config
     "snac",
-    # huggingface_hub — cache + download
+    # huggingface_hub - cache + download
     "huggingface_hub",
-    # safetensors — used by both transformers and peft
+    # safetensors - used by both transformers and peft
     "safetensors",
     "safetensors.torch",
 ]
 
 # Data files to bundle alongside the executable.
-# Empty list — config.json is created at runtime, models download to
+# Empty list - config.json is created at runtime, models download to
 # the user's HF cache, ffmpeg is expected on PATH.
 datas = []
 
-# Binaries — same approach: trust PyInstaller's auto-detection for torch/cuda.
+# Binaries - same approach: trust PyInstaller's auto-detection for torch/cuda.
 binaries = []
 
 a = Analysis(
@@ -95,8 +95,8 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=False,                # UPX often corrupts torch's CUDA DLLs — keep off
-    console=False,            # GUI app — no console window on launch
+    upx=False,                # UPX often corrupts torch's CUDA DLLs - keep off
+    console=False,            # GUI app - no console window on launch
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

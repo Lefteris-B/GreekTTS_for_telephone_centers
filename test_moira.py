@@ -10,7 +10,7 @@ Run from your project folder:
 
 Each phase prints a timestamped line. The LAST line printed tells us
 exactly where things stopped if anything fails. On success, saves
-test_moira_output.wav next to the script — listen to it to judge whether
+test_moira_output.wav next to the script - listen to it to judge whether
 the quality is actually better than MMS-TTS for your use case.
 
 First run downloads ~6.5 GB of model weights from Hugging Face. Make sure
@@ -71,7 +71,7 @@ def main() -> int:
         log(f"FAIL: torch not installed: {e}")
         return 2
 
-    log("Phase 1b: importing unsloth (heavy import — can take 10–30s)...")
+    log("Phase 1b: importing unsloth (heavy import - can take 10–30s)...")
     try:
         from unsloth import FastLanguageModel
         log("unsloth.FastLanguageModel imported", indent=1)

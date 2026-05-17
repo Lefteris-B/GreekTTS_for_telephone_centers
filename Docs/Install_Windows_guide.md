@@ -1,4 +1,4 @@
-# Greek TTS — Windows installation
+# Greek TTS - Windows installation
 
 This guide is for end users who downloaded the `GreekTTS-windows-*.zip`
 release. If you're a developer building from source, see the main README.
@@ -30,11 +30,11 @@ release. If you're a developer building from source, see the main README.
 ### The easy way (recommended)
 
 1. **Download** `GreekTTS-windows-*.zip` from the [Releases page](../../releases).
-2. **Extract** the zip to a permanent folder — for example `C:\GreekTTS`. Avoid Downloads or Desktop.
+2. **Extract** the zip to a permanent folder - for example `C:\GreekTTS`. Avoid Downloads or Desktop.
 3. **Double-click `setup.cmd`** at the top of the extracted folder.
    - The script installs ffmpeg automatically, installs Python if needed, and downloads the ~2.5 GB of model files.
    - Total time: 10–20 minutes depending on your network.
-   - If something fails partway, just run `setup.cmd` again — it resumes from where it stopped.
+   - If something fails partway, just run `setup.cmd` again - it resumes from where it stopped.
 4. When setup is done, **double-click `GreekTTS\GreekTTS.exe`** to launch the app.
 
 That's it. The first launch will be ready immediately because everything is already installed.
@@ -65,7 +65,7 @@ The first time you run `GreekTTS.exe`:
 1. The window appears within a few seconds.
 2. A dialog warns that ~2.5 GB of model files need to download from Hugging Face. Click **OK**.
 3. Download takes 5–15 minutes depending on your internet speed. The status bar shows progress.
-4. When complete, the status bar shows **"Έτοιμο. Μοντέλο φορτωμένο σε GPU…"** — you're ready to use the app.
+4. When complete, the status bar shows **"Έτοιμο. Μοντέλο φορτωμένο σε GPU…"** - you're ready to use the app.
 
 Subsequent launches skip the download and start within 30–60 seconds.
 
@@ -73,7 +73,7 @@ Subsequent launches skip the download and start within 30–60 seconds.
 
 ## Daily use
 
-1. Open the app — wait for "Έτοιμο. Μοντέλο φορτωμένο…".
+1. Open the app - wait for "Έτοιμο. Μοντέλο φορτωμένο…".
 2. Type or paste Greek text in the main field.
 3. Choose your output format (A-law 8 kHz mono is correct for most Greek telephony setups).
 4. Click **Δημιουργία**. Synthesis takes 5–15 seconds per sentence.
@@ -98,13 +98,13 @@ PyInstaller bundles trigger heuristic detection on some antivirus tools. The exe
 The model download stalled. Most common cause: corporate firewall blocking `huggingface.co`. Either move to an unrestricted network for first launch, or pre-download the model files manually (see main README).
 
 **Synthesis output sounds wrong**
-- Sometimes the model has a bad generation. Click **Δημιουργία** again — output is non-deterministic.
-- Audio sounding thin or muffled on a phone is normal — telephony's 8 kHz / A-law encoding strips high frequencies. Evaluate on a real phone, not headphones.
+- Sometimes the model has a bad generation. Click **Δημιουργία** again - output is non-deterministic.
+- Audio sounding thin or muffled on a phone is normal - telephony's 8 kHz / A-law encoding strips high frequencies. Evaluate on a real phone, not headphones.
 
 **Where does the app store data?**
 
 - **App folder:** wherever you extracted the zip. Contains `GreekTTS.exe` and bundled libraries.
-- **`config.json`:** in the same folder as the exe — your settings (default format, pitch, speed, etc.).
+- **`config.json`:** in the same folder as the exe - your settings (default format, pitch, speed, etc.).
 - **Model cache:** `C:\Users\<you>\.cache\huggingface\hub\`. About 2.5 GB after first launch.
 
 To completely uninstall: delete the app folder and (optionally) the Hugging Face cache folder.

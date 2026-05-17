@@ -12,7 +12,7 @@ env/
 .python-version
 
 # --- App runtime ---
-# User config — should not be committed (contains local paths)
+# User config - should not be committed (contains local paths)
 config.json
 # Downloaded model files
 models/

@@ -1,7 +1,7 @@
 # Greek TTS for Telephony
 
 A desktop application that converts Greek text into telephony-ready audio
-files (WAV) using **Moira.AI GreekTTS-1.5** — a Greek LoRA adapter on top of
+files (WAV) using **Moira.AI GreekTTS-1.5** - a Greek LoRA adapter on top of
 the Orpheus 3B foundation model, with SNAC neural codec for audio decoding.
 
 Designed for non-developer users in Greek call-center environments.
@@ -118,12 +118,12 @@ What happens on the very first launch:
 1. **Warm-up** in the terminal (~10–15 seconds). You'll see progress lines for torch, unsloth, transformers, and SNAC. This is normal and only this slow once.
 2. **Model download dialog.** The app warns you that ~2.5 GB of model files need to download. Click OK.
 3. **Background download** of three components from Hugging Face:
-   - `unsloth/orpheus-3b-0.1-ft` (~2 GB — the slow one, expect 5–10 minutes on typical broadband)
+   - `unsloth/orpheus-3b-0.1-ft` (~2 GB - the slow one, expect 5–10 minutes on typical broadband)
    - `moiralabs/GreekTTS-1.5` (~389 MB)
    - `hubertsiuzdak/snac_24khz` (~80 MB)
 4. **Ready.** The status bar shows "Έτοιμο. Μοντέλο φορτωμένο σε GPU (4-bit, 24000 Hz)."
 
-The UI stays responsive throughout — synthesis runs on a background thread.
+The UI stays responsive throughout - synthesis runs on a background thread.
 
 **Subsequent launches** use the cached models and reach the ready state in 30–60 seconds with no internet required.
 
@@ -133,13 +133,13 @@ If the first-launch download fails or stalls, see [Troubleshooting](#troubleshoo
 
 ## Daily use
 
-1. Open the app — wait for the status bar to say "Έτοιμο. Μοντέλο φορτωμένο…".
+1. Open the app - wait for the status bar to say "Έτοιμο. Μοντέλο φορτωμένο…".
 2. Type or paste Greek text into the main field.
 3. Choose your output format (A-law 8 kHz mono is correct for most European telephony).
 4. Click **Δημιουργία**. Synthesis takes about 5–15 seconds per sentence.
 5. Click **▶** to preview the result. Click **■** to stop.
 6. If you like it, click **Αποθήκευση…** and save to your desired location (typically your PBX's sounds folder).
-7. If you don't like it (sampled generation occasionally has glitches), just click **Δημιουργία** again — the next attempt will be different.
+7. If you don't like it (sampled generation occasionally has glitches), just click **Δημιουργία** again - the next attempt will be different.
 
 Settings (default format, generation parameters, voice shaping) persist between sessions in `config.json`.
 
@@ -147,7 +147,7 @@ Settings (default format, generation parameters, voice shaping) persist between 
 
 ## Customizing the voice
 
-GreekTTS-1.5 is a **single-speaker model** — there is no built-in male/female switch. The voice's identity is locked in by the LoRA training data.
+GreekTTS-1.5 is a **single-speaker model** - there is no built-in male/female switch. The voice's identity is locked in by the LoRA training data.
 
 However, you can shape the acoustic character of that one voice through three knobs in `config.json`. Combined, they give you a small palette of distinguishable variants. To use these, open `config.json` in any text editor while the app is closed, change the values, save, and relaunch.
 
@@ -167,7 +167,7 @@ Shifts the entire voice up or down in pitch. Most useful range is `±5` semitone
 
 ### Speed (`speed`)
 
-Range: `0.5` to `2.0`. Default: `1.0`. Pitch is preserved regardless of speed — only the speaking rate changes.
+Range: `0.5` to `2.0`. Default: `1.0`. Pitch is preserved regardless of speed - only the speaking rate changes.
 
 | Value | Effect |
 |------:|--------|
@@ -180,17 +180,17 @@ Range: `0.5` to `2.0`. Default: `1.0`. Pitch is preserved regardless of speed �
 
 These affect the autoregressive generation process, not the voice itself. Defaults from the Moira.AI model card work well for most cases:
 
-- `temperature: 0.6` — sampling randomness. Lower = more consistent but sometimes flatter. Try `0.4` if you're getting unstable output.
-- `top_p: 0.95` — nucleus sampling. Rarely needs changing.
-- `repetition_penalty: 1.1` — discourages the model from getting stuck. Don't lower below `1.0`.
+- `temperature: 0.6` - sampling randomness. Lower = more consistent but sometimes flatter. Try `0.4` if you're getting unstable output.
+- `top_p: 0.95` - nucleus sampling. Rarely needs changing.
+- `repetition_penalty: 1.1` - discourages the model from getting stuck. Don't lower below `1.0`.
 
-### Voice prefix (experimental — usually does nothing)
+### Voice prefix (experimental - usually does nothing)
 
 `voice_prefix` lets you try injecting one of the Orpheus base voices' names (e.g., `"tara"`, `"leah"`, `"leo"`). In practice this has no audible effect on most prompts because the Greek LoRA was trained without these prefixes. Left in for completeness; set to `null` (the default) for normal operation.
 
 ### Reproducibility (`seed`)
 
-By default each generation is different. Set `seed` to an integer (e.g., `42`) to make output reproducible — useful if you want to recreate an exact prompt later.
+By default each generation is different. Set `seed` to an integer (e.g., `42`) to make output reproducible - useful if you want to recreate an exact prompt later.
 
 ---
 
@@ -198,7 +198,7 @@ By default each generation is different. Set `seed` to an integer (e.g., `42`) t
 
 | Preset                | Use this for                                                    |
 |-----------------------|-----------------------------------------------------------------|
-| **A-law 8 kHz mono**  | European telephony — Asterisk, 3CX, OTE / Nova SIP trunks. **Default.** |
+| **A-law 8 kHz mono**  | European telephony - Asterisk, 3CX, OTE / Nova SIP trunks. **Default.** |
 | μ-law 8 kHz mono      | North American telephony                                        |
 | PCM 16-bit 8 kHz      | Generic 8 kHz playback, debugging                               |
 | PCM 16-bit 16 kHz     | HD-voice systems / WebRTC                                       |
@@ -223,7 +223,7 @@ exten => s,1,Answer()
  same => n,WaitExten(5)
 ```
 
-A-law WAV files are recognized natively by Asterisk — no extra conversion required.
+A-law WAV files are recognized natively by Asterisk - no extra conversion required.
 
 For FreeSWITCH, 3CX, or other PBXes, consult their documentation for the equivalent prompt-file path and playback verb. The output format is standard enough to drop in unchanged.
 
@@ -233,7 +233,7 @@ For FreeSWITCH, 3CX, or other PBXes, consult their documentation for the equival
 
 ```
 greek-tts-app/
-  app.py             # entry point — `python app.py`
+  app.py             # entry point - `python app.py`
   ui.py              # PySide6 GUI (Greek-language)
   tts_engine.py      # Orpheus + LoRA + SNAC pipeline + ffmpeg post-processing
   config.py          # JSON-backed settings persistence
@@ -248,7 +248,7 @@ greek-tts-app/
 
 ## Configuration reference
 
-`config.json` is created automatically the first time you change any setting. You can also create it by hand. All fields are optional — missing fields fall back to defaults.
+`config.json` is created automatically the first time you change any setting. You can also create it by hand. All fields are optional - missing fields fall back to defaults.
 
 ```json
 {
@@ -313,7 +313,7 @@ For air-gapped machines: run those commands on a connected machine and copy the 
 
 ### App hangs on "Φόρτωση μοντέλου…" forever
 
-Run from a terminal — never double-click:
+Run from a terminal - never double-click:
 ```bash
 python -u app.py
 ```
@@ -321,7 +321,7 @@ The terminal will show what's actually happening (download progress, errors, sta
 
 ### Output sounds noisy, has glitches, or is partially garbled
 
-Sampled generation is non-deterministic — sometimes a particular run goes wrong. Click **Δημιουργία** again; the next attempt will be different.
+Sampled generation is non-deterministic - sometimes a particular run goes wrong. Click **Δημιουργία** again; the next attempt will be different.
 
 If glitches happen on most attempts, try lowering `temperature` in `config.json` from `0.6` to `0.4` for more conservative sampling.
 
@@ -331,7 +331,7 @@ This is a fundamental property of telephony, not the model. The 8 kHz / a-law en
 
 ### "Λείπει εξάρτηση Python"
 
-A Python dependency is missing. The error message includes the specific missing package — install it with pip and try again. The most common one is `bitsandbytes`, which sometimes needs explicit installation:
+A Python dependency is missing. The error message includes the specific missing package - install it with pip and try again. The most common one is `bitsandbytes`, which sometimes needs explicit installation:
 ```bash
 pip install bitsandbytes
 ```
@@ -350,7 +350,7 @@ The Llama 3 Community License has its own conditions (most notably an acceptable
 
 ## GDPR and Greek law for outbound calls
 
-This tool only generates audio. The legal obligations around using that audio in outbound calls — particularly automated calls to consumers — are entirely the responsibility of the calling system and your operational policies. **Make sure the following are in place before you start dialing:**
+This tool only generates audio. The legal obligations around using that audio in outbound calls - particularly automated calls to consumers - are entirely the responsibility of the calling system and your operational policies. **Make sure the following are in place before you start dialing:**
 
 - **Documented consent** from each recipient (Law 3471/2006 + GDPR). Automated calls without prior consent are a hard violation.
 - **Article 11 opt-out registry suppression** (Μητρώο του άρθρου 11). Cross-reference every number before dialing.
@@ -387,7 +387,7 @@ Synthesis runs on a Qt worker thread. The UI never freezes. Model loading also r
 The model selection went through several iterations, each ruled out for a concrete reason. Recording these is useful so future-you doesn't redo the work:
 
 - **Piper (rapunzelina-low).** Free, fast, CPU-friendly, but only one Greek voice exists at the "low" quality tier. Autoregressive decoder regularly got stuck on phonemes and produced repetition glitches. Hit the quality ceiling immediately.
-- **F5-TTS-Greek (PetrosStav).** Better architecture (flow-matching, no get-stuck failures) but required a reference voice + matching transcript. After fighting silent hangs (vocoder download, Qt threading, worker-thread CUDA init, GC of worker objects), got it working — but final output was gibberish, almost certainly due to subtle reference-clip / transcript mismatch issues.
+- **F5-TTS-Greek (PetrosStav).** Better architecture (flow-matching, no get-stuck failures) but required a reference voice + matching transcript. After fighting silent hangs (vocoder download, Qt threading, worker-thread CUDA init, GC of worker objects), got it working - but final output was gibberish, almost certainly due to subtle reference-clip / transcript mismatch issues.
 - **MMS-TTS (facebook/mms-tts-ell).** Robust VITS architecture, no reference clip needed, very simple stack (just transformers). Single fixed voice but stable and intelligible. Works perfectly. **The simpler app you can fall back to if Moira ever breaks.**
 - **Moira GreekTTS-1.5.** Current selection. The most natural-sounding Greek TTS we found that's self-hosted. Heavier stack (Orpheus 3B + LoRA + SNAC) and requires a 4 GB+ GPU, but the quality justifies it for production prompts. 4-bit quantization makes it fit on consumer GPUs.
 
@@ -402,9 +402,9 @@ The honest list of what this stack does *not* do:
 
 ### When to consider alternatives
 
-- **You need broadcast-grade quality.** Hire a Greek voice actor — €200–500 for an afternoon session, full commercial rights, broadcast quality, zero technical dependencies. For fixed prompt sets this is hard to beat.
+- **You need broadcast-grade quality.** Hire a Greek voice actor - €200–500 for an afternoon session, full commercial rights, broadcast quality, zero technical dependencies. For fixed prompt sets this is hard to beat.
 - **You need an officially commercially-licensed on-prem solution.** Microsoft Azure Speech containers (paid, government-friendly).
-- **You need multiple voices.** Same as above — multiple voice actors, or wait for a future multi-speaker Greek open model.
+- **You need multiple voices.** Same as above - multiple voice actors, or wait for a future multi-speaker Greek open model.
 
 ---
 

@@ -3,7 +3,7 @@ name: Build Windows executable
 # Trigger rules:
 #   - Push to main → builds and uploads CI artifact (90-day retention)
 #   - Push a tag like v1.0.0 → additionally creates a GitHub Release
-#   - Manual dispatch from the Actions tab — useful for testing
+#   - Manual dispatch from the Actions tab - useful for testing
 on:
   push:
     branches: [main]
@@ -13,7 +13,7 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
-    # 90 min ceiling — torch + cuda install alone can take 20+ min
+    # 90 min ceiling - torch + cuda install alone can take 20+ min
     timeout-minutes: 90
 
     steps:
@@ -24,7 +24,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          # No pip cache — torch CUDA wheels are too big to cache reliably
+          # No pip cache - torch CUDA wheels are too big to cache reliably
           # and we want a clean build each time.
 
       - name: Show runner specs
@@ -39,7 +39,7 @@ jobs:
 
       # ----- Install PyTorch with CUDA 12.1 from PyTorch's index -----
       # Done separately because pip needs a different index URL for these
-      # wheels — they aren't on PyPI.
+      # wheels - they aren't on PyPI.
       - name: Install PyTorch (CUDA 12.1)
         shell: pwsh
         run: |

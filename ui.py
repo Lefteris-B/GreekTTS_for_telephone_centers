@@ -136,7 +136,7 @@ class MainWindow(QMainWindow):
         self._synth_worker: SynthesisWorker | None = None
         self._load_timeouts: list[QTimer] = []
 
-        self.setWindowTitle("Μετατροπέας Κειμένου σε Ομιλία — Greek TTS (Moira)")
+        self.setWindowTitle("Μετατροπέας Κειμένου σε Ομιλία - Greek TTS (Moira)")
         self.resize(780, 580)
         self.setMinimumSize(640, 480)
 
@@ -268,7 +268,7 @@ class MainWindow(QMainWindow):
 
         self._set_busy(True, msg="Φόρτωση Moira GreekTTS-1.5… (μπορεί να διαρκέσει αρκετά λεπτά)")
 
-        # Progressive timeout messages — model load can take 30s (cached)
+        # Progressive timeout messages - model load can take 30s (cached)
         # to 10+ minutes (first-time download on slow networks).
         self._stop_load_timeouts()
         timeout_messages = [

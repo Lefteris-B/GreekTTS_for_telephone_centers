@@ -39,19 +39,19 @@ def check_models_cached() -> tuple[bool, list[str]]:
 
     Each component is checked by probing one signature file. If a component
     is partially downloaded (interrupted), the signature check usually still
-    flags it as missing, which is the safer behavior — let HuggingFace
+    flags it as missing, which is the safer behavior - let HuggingFace
     resume the download rather than assume it's complete.
     """
     missing: list[str] = []
 
-    # Orpheus base — check for the model weights file (different name in 4-bit form)
+    # Orpheus base - check for the model weights file (different name in 4-bit form)
     if not (
         _is_cached(BASE_MODEL, "model.safetensors")
         or _is_cached(BASE_MODEL, "model.safetensors.index.json")
     ):
         missing.append("Orpheus base (~2 GB)")
 
-    # LoRA adapter — check inside the checkpoint subfolder
+    # LoRA adapter - check inside the checkpoint subfolder
     if not _is_cached(LORA_REPO, "checkpoint-264000/adapter_model.safetensors"):
         missing.append("Greek LoRA adapter (~389 MB)")
 
@@ -71,7 +71,7 @@ def model_warning_message(missing: list[str]) -> str:
     return (
         "Λείπουν τα παρακάτω αρχεία μοντέλου:\n\n"
         f"{items}\n\n"
-        "Στη φόρτωση θα γίνει αυτόματη λήψη από το Hugging Face — "
+        "Στη φόρτωση θα γίνει αυτόματη λήψη από το Hugging Face - "
         "απαιτείται σύνδεση internet στην πρώτη εκτέλεση. "
         "Συνολικά έως ~2.5 GB. Η λήψη μπορεί να πάρει 5–15 λεπτά "
         "ανάλογα με την ταχύτητα του δικτύου.\n\n"
