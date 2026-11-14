@@ -20,6 +20,7 @@ Telephony output formats:
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -285,7 +286,11 @@ class GreekTTSEngine:
                 last_percent = percent
                 progress(fraction, chunk, chunks)
 
-        tmp_raw = Path(tempfile.mkstemp(suffix=".wav")[1])
+        # mkstemp returns an open handle; close it at once. We reopen the file
+        # by path, and Windows can't delete a file while any handle is open.
+        fd, tmp_name = tempfile.mkstemp(suffix=".wav")
+        os.close(fd)
+        tmp_raw = Path(tmp_name)
         try:
             try:
                 self._synthesize_to_wav(
