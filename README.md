@@ -15,6 +15,7 @@ the Orpheus 3B foundation model, with SNAC neural codec for audio decoding.
 - **High-quality Greek output.** Trained specifically on Greek speech, with natural prosody and accent on word stress.
 - **Runs on-premise** after first launch. Three model components auto-download once, then run offline.
 - **Simple interface.** Type Greek text → click Generate → save WAV. No reference voice or transcripts to manage.
+- **English too.** Switch *Γλώσσα* to English to synthesize English text with the base Orpheus model (Greek LoRA switched off) and pick one of its built-in voices: Tara, Leah, Jess, Leo, Dan, Mia, Zac, Zoe. No extra download or VRAM. Note the English voices are different speakers from the Greek voice.
 - **Greek-language UI.**
 - **Telephony-ready output.** A-law 8 kHz mono by default; μ-law and PCM also available.
 - **Drop-in for Asterisk / FreeSWITCH / 3CX / any PBX.**
@@ -137,7 +138,8 @@ greek-tts-app/
 ## Tips
 
 - **Sampling-based generation.** Output varies slightly between runs even for the same input. If a particular generation has artifacts, try clicking Generate again. To get reproducible output, set a `seed` value in `config.json`.
-- **Keep prompts under ~10 seconds.** The model's `max_new_tokens=1200` cap roughly translates to 8–10 seconds of audio. For longer prompts, split into multiple sentences and concatenate WAVs.
+- **Long text is split automatically.** The model's `max_new_tokens=1200` cap roughly translates to 8–10 seconds of audio per generation pass, so longer input is split into chunks of up to ~150 characters at sentence boundaries (falling back to commas, then words), generated one by one, and joined with a 0.25 s pause into a single file. Generation time grows with text length. Punctuating your text properly gives the most natural breaks.
+- **Pick the language that matches the whole prompt.** A Greek prompt with a few English words (brand names, "SMS") is best left on Greek; switch to English only for fully English text. The language and English voice you last used are saved in `config.json` (`language`: `"el"` or `"en"`, `english_voice`).
 - **For telephony, evaluate on a real phone.** 8 kHz a-law strips a lot of high-frequency content. Audio that sounds great on headphones may sound thin on a phone.
 
 ---

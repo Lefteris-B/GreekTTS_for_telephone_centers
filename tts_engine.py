@@ -20,6 +20,7 @@ Telephony output formats:
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import tempfile
@@ -58,9 +59,73 @@ FORMATS = {
 
 DEFAULT_FORMAT = "alaw_8k"
 
+# Languages. Greek uses the Moira LoRA adapter; English disables the adapter
+# and runs the base Orpheus model, which needs a "<voice>: " prompt prefix
+# and speaks with one of its built-in English voices.
+LANGUAGES = {
+    "el": "Ελληνικά (Greek)",
+    "en": "English",
+}
+DEFAULT_LANGUAGE = "el"
+
+ENGLISH_VOICES = ["tara", "leah", "jess", "leo", "dan", "mia", "zac", "zoe"]
+DEFAULT_ENGLISH_VOICE = "tara"
+
+# Long input is split into chunks that each fit in one generation pass.
+# ~150 characters of Greek is roughly 8 seconds of speech, safely under the
+# max_new_tokens=1200 cap. Chunks are joined with a short pause.
+MAX_CHUNK_CHARS = 150
+CHUNK_PAUSE_SECONDS = 0.25
+
+# Sentence ends: . ! ? … and ; / ; (Greek question mark, ASCII and U+037E).
+_SENTENCE_END = re.compile(r"(?<=[.!?…;;])\s+")
+# Weaker breaks inside an over-long sentence: comma, ano teleia (· U+0387), colon.
+_CLAUSE_END = re.compile(r"(?<=[,··:])\s+")
+
 
 class TTSEngineError(RuntimeError):
     """Raised for any error in the synthesis pipeline."""
+
+
+def split_text(text: str, max_chars: int = MAX_CHUNK_CHARS) -> list[str]:
+    """
+    Split text into chunks of at most max_chars, preferring sentence
+    boundaries, then clause boundaries, then word boundaries. Consecutive
+    short sentences are packed together so short prompts stay one chunk.
+    """
+    text = " ".join(text.split())
+    if not text:
+        return []
+
+    # Break into pieces that are each <= max_chars
+    pieces: list[str] = []
+    for sentence in _SENTENCE_END.split(text):
+        if len(sentence) <= max_chars:
+            pieces.append(sentence)
+            continue
+        for clause in _CLAUSE_END.split(sentence):
+            if len(clause) <= max_chars:
+                pieces.append(clause)
+                continue
+            # No punctuation to break on - fall back to word boundaries
+            line = ""
+            for word in clause.split(" "):
+                if line and len(line) + 1 + len(word) > max_chars:
+                    pieces.append(line)
+                    line = word
+                else:
+                    line = f"{line} {word}" if line else word
+            if line:
+                pieces.append(line)
+
+    # Pack pieces greedily back up to max_chars
+    chunks: list[str] = []
+    for piece in pieces:
+        if chunks and len(chunks[-1]) + 1 + len(piece) <= max_chars:
+            chunks[-1] = f"{chunks[-1]} {piece}"
+        else:
+            chunks.append(piece)
+    return chunks
 
 
 class GreekTTSEngine:
@@ -170,19 +235,29 @@ class GreekTTSEngine:
         repetition_penalty: float = 1.1,
         max_new_tokens: int = 1200,
         seed: int | None = None,
+        language: str = DEFAULT_LANGUAGE,
+        voice: str = DEFAULT_ENGLISH_VOICE,
     ) -> Path:
         """
-        Synthesize Greek text and write a telephony-ready WAV to output_path.
+        Synthesize text and write a telephony-ready WAV to output_path.
+
+        `language` is "el" (Greek LoRA voice) or "en" (base Orpheus).
+        `voice` picks the Orpheus English voice and is ignored for Greek.
         Returns output_path on success, raises TTSEngineError on failure.
 
         Generation is sampled (non-deterministic). Pass `seed` to reproduce
         a specific run. `max_new_tokens=1200` corresponds to roughly 8–10
-        seconds of audio - long enough for typical IVR prompts.
+        seconds of audio per chunk; longer text is split into chunks
+        (see split_text) and the audio joined with short pauses.
         """
         if not text.strip():
             raise TTSEngineError("Δεν υπάρχει κείμενο προς μετατροπή.")
         if fmt not in FORMATS:
             raise TTSEngineError(f"Άγνωστο φορμά '{fmt}'. Έγκυρα: {list(FORMATS)}")
+        if language not in LANGUAGES:
+            raise TTSEngineError(f"Άγνωστη γλώσσα '{language}'. Έγκυρες: {list(LANGUAGES)}")
+        if language == "en" and voice not in ENGLISH_VOICES:
+            raise TTSEngineError(f"Άγνωστη φωνή '{voice}'. Έγκυρες: {ENGLISH_VOICES}")
 
         output_path = Path(output_path)
 
@@ -197,6 +272,8 @@ class GreekTTSEngine:
                     repetition_penalty=repetition_penalty,
                     max_new_tokens=max_new_tokens,
                     seed=seed,
+                    language=language,
+                    voice=voice,
                 )
             except TTSEngineError:
                 raise
@@ -223,12 +300,56 @@ class GreekTTSEngine:
         repetition_penalty: float,
         max_new_tokens: int,
         seed: int | None,
+        language: str,
+        voice: str,
     ) -> None:
+        import numpy as np
+
         torch = self._torch
 
         if seed is not None:
             torch.manual_seed(seed)
             torch.cuda.manual_seed_all(seed)
+
+        # Generate each chunk separately, then join with silence in between
+        pause = np.zeros(int(SNAC_OUTPUT_RATE * CHUNK_PAUSE_SECONDS), dtype="int16")
+        parts = []
+        # English runs on the base model: switch the Greek LoRA off for the
+        # duration and always switch it back on, even if generation fails.
+        if language == "en":
+            self._model.disable_adapters()
+        try:
+            for i, chunk in enumerate(split_text(text)):
+                if i > 0:
+                    parts.append(pause)
+                parts.append(self._generate_pcm(
+                    text=f"{voice}: {chunk}" if language == "en" else chunk,
+                    temperature=temperature,
+                    top_p=top_p,
+                    repetition_penalty=repetition_penalty,
+                    max_new_tokens=max_new_tokens,
+                ))
+        finally:
+            if language == "en":
+                self._model.enable_adapters()
+        pcm = np.concatenate(parts)
+
+        with wave.open(str(out_path), "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(self.sample_rate)
+            w.writeframes(pcm.tobytes())
+
+    def _generate_pcm(
+        self,
+        text: str,
+        temperature: float,
+        top_p: float,
+        repetition_penalty: float,
+        max_new_tokens: int,
+    ):
+        """Generate one chunk of text and return 16-bit PCM samples (numpy)."""
+        torch = self._torch
 
         # Tokenize input text and wrap with the GreekTTS framing tokens:
         #   [Start-of-Human] <text> [End-of-Text] [End-of-Human]
@@ -296,13 +417,7 @@ class GreekTTSEngine:
             audio_hat = self._snac.decode(codes)
 
         audio = audio_hat.detach().squeeze().cpu().float().numpy().clip(-1.0, 1.0)
-        pcm = (audio * 32767.0).astype("int16")
-
-        with wave.open(str(out_path), "wb") as w:
-            w.setnchannels(1)
-            w.setsampwidth(2)
-            w.setframerate(self.sample_rate)
-            w.writeframes(pcm.tobytes())
+        return (audio * 32767.0).astype("int16")
 
     @staticmethod
     def _convert(src: Path, dst: Path, fmt: str) -> None:

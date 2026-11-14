@@ -23,6 +23,10 @@ class AppConfig:
     # Default telephony output format
     default_format: str = "alaw_8k"
 
+    # Last-used language ("el" or "en") and English voice
+    language: str = "el"
+    english_voice: str = "tara"
+
     # Orpheus generation hyperparameters (defaults from the GreekTTS-1.5 model card)
     temperature: float = 0.6
     top_p: float = 0.95

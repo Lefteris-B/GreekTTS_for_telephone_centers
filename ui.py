@@ -38,7 +38,16 @@ from PySide6.QtWidgets import (
 
 from config import AppConfig
 from network import check_models_cached, model_warning_message
-from tts_engine import DEFAULT_FORMAT, FORMATS, GreekTTSEngine, TTSEngineError
+from tts_engine import (
+    DEFAULT_ENGLISH_VOICE,
+    DEFAULT_FORMAT,
+    DEFAULT_LANGUAGE,
+    ENGLISH_VOICES,
+    FORMATS,
+    LANGUAGES,
+    GreekTTSEngine,
+    TTSEngineError,
+)
 
 
 # =====================================================================
@@ -80,6 +89,8 @@ class SynthesisWorker(QObject):
         repetition_penalty: float,
         max_new_tokens: int,
         seed: int | None,
+        language: str,
+        voice: str,
     ) -> None:
         super().__init__()
         self.engine = engine
@@ -91,6 +102,8 @@ class SynthesisWorker(QObject):
         self.repetition_penalty = repetition_penalty
         self.max_new_tokens = max_new_tokens
         self.seed = seed
+        self.language = language
+        self.voice = voice
 
     def run(self) -> None:
         try:
@@ -103,6 +116,8 @@ class SynthesisWorker(QObject):
                 repetition_penalty=self.repetition_penalty,
                 max_new_tokens=self.max_new_tokens,
                 seed=self.seed,
+                language=self.language,
+                voice=self.voice,
             )
             self.finished.emit(result)
         except TTSEngineError as e:
@@ -158,7 +173,7 @@ class MainWindow(QMainWindow):
 
         title = QLabel("Μετατροπέας Κειμένου σε Ομιλία")
         title.setObjectName("title")
-        subtitle = QLabel("Greek text → telephony-ready audio · Moira GreekTTS-1.5")
+        subtitle = QLabel("Greek / English text → telephony-ready audio · Moira GreekTTS-1.5 + Orpheus")
         subtitle.setObjectName("subtitle")
         root.addWidget(title)
         root.addWidget(subtitle)
@@ -174,11 +189,46 @@ class MainWindow(QMainWindow):
 
         self.text_edit = QPlainTextEdit()
         self.text_edit.setPlaceholderText(
-            "Πληκτρολογήστε ή επικολλήστε ελληνικό κείμενο εδώ…"
+            "Πληκτρολογήστε ή επικολλήστε κείμενο εδώ…"
         )
         self.text_edit.setPlainText(self.SAMPLE_TEXT)
         self.text_edit.setMinimumHeight(160)
         root.addWidget(self.text_edit, 1)
+
+        # Language + voice row
+        lang_row = QHBoxLayout()
+        lang_row.setSpacing(10)
+
+        lang_label = QLabel("Γλώσσα:")
+        lang_label.setObjectName("inlineLabel")
+        lang_row.addWidget(lang_label)
+
+        self.language_combo = QComboBox()
+        for key, label in LANGUAGES.items():
+            self.language_combo.addItem(label, userData=key)
+        idx = self.language_combo.findData(self.config.language or DEFAULT_LANGUAGE)
+        if idx >= 0:
+            self.language_combo.setCurrentIndex(idx)
+        self.language_combo.currentIndexChanged.connect(self._update_voice_combo)
+        lang_row.addWidget(self.language_combo)
+
+        voice_label = QLabel("Φωνή:")
+        voice_label.setObjectName("inlineLabel")
+        lang_row.addWidget(voice_label)
+
+        # Only English has selectable voices; Greek always uses the Moira voice
+        self.voice_combo = QComboBox()
+        for name in ENGLISH_VOICES:
+            self.voice_combo.addItem(name.capitalize(), userData=name)
+        idx = self.voice_combo.findData(self.config.english_voice or DEFAULT_ENGLISH_VOICE)
+        if idx >= 0:
+            self.voice_combo.setCurrentIndex(idx)
+        self.voice_combo.setMinimumWidth(120)
+        lang_row.addWidget(self.voice_combo)
+
+        lang_row.addStretch(1)
+        root.addLayout(lang_row)
+        self._update_voice_combo()
 
         # Format + actions row
         action_row = QHBoxLayout()
@@ -338,8 +388,15 @@ class MainWindow(QMainWindow):
         fmt = self.format_combo.currentData()
         out_path = self._tmp_dir / f"preview_{fmt}.wav"
 
-        if fmt != self.config.default_format:
+        language = self.language_combo.currentData()
+        voice = self.voice_combo.currentData()
+
+        if (fmt, language, voice) != (
+            self.config.default_format, self.config.language, self.config.english_voice
+        ):
             self.config.default_format = fmt
+            self.config.language = language
+            self.config.english_voice = voice
             self.config.save(self.app_dir)
 
         # Stop any current playback (Windows holds the file open during playback)
@@ -362,6 +419,8 @@ class MainWindow(QMainWindow):
             repetition_penalty=self.config.repetition_penalty,
             max_new_tokens=self.config.max_new_tokens,
             seed=self.config.seed,
+            language=language,
+            voice=voice,
         )
         self._synth_worker.moveToThread(self._synth_thread)
         self._synth_thread.started.connect(self._synth_worker.run)
@@ -425,12 +484,19 @@ class MainWindow(QMainWindow):
         self.progress.setVisible(busy)
         self.text_edit.setReadOnly(busy)
         self.format_combo.setEnabled(not busy)
+        self.language_combo.setEnabled(not busy)
+        self._update_voice_combo()
         if busy:
             self.generate_btn.setEnabled(False)
             if msg:
                 self._set_status(msg, info=True)
         else:
             self._update_generate_button()
+
+    def _update_voice_combo(self) -> None:
+        # Voice choice applies to English only, and is locked while busy
+        is_english = self.language_combo.currentData() == "en"
+        self.voice_combo.setEnabled(is_english and self.language_combo.isEnabled())
 
     def _update_generate_button(self) -> None:
         self.generate_btn.setEnabled(self.engine is not None)
