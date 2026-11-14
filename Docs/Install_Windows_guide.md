@@ -1,6 +1,6 @@
 # Greek TTS - Windows installation
 
-This guide is for end users who downloaded the `GreekTTS-windows-*.zip`
+This guide is for end users who downloaded the `GreekTTS-windows-*.7z.*`
 release. If you're a developer building from source, see the main README.
 
 ---
@@ -29,8 +29,8 @@ release. If you're a developer building from source, see the main README.
 
 ### The easy way (recommended)
 
-1. **Download** `GreekTTS-windows-*.zip` from the [Releases page](../../releases).
-2. **Extract** the zip to a permanent folder - for example `C:\GreekTTS`. Avoid Downloads or Desktop.
+1. **Download all parts** `GreekTTS-windows-*.7z.001`, `.7z.002`, … from the [Releases page](../../releases) into the same folder. (The app bundles NVIDIA CUDA libraries, so it is split to fit GitHub's 2 GB file limit.)
+2. **Extract** with [7-Zip](https://www.7-zip.org/): right-click the `.7z.001` file → *7-Zip* → *Extract files…* and pick a permanent folder - for example `C:\GreekTTS`. Avoid Downloads or Desktop. 7-Zip joins the parts automatically.
 3. **Double-click `setup.cmd`** at the top of the extracted folder.
    - The script installs ffmpeg automatically, installs Python if needed, and downloads the ~2.5 GB of model files.
    - Total time: 10–20 minutes depending on your network.
