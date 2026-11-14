@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import shutil
 import tempfile
+import time
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QThread, QTimer, QUrl, Signal
@@ -77,6 +78,7 @@ class SynthesisWorker(QObject):
     """Runs one synthesis on a background thread."""
     finished = Signal(Path)
     failed = Signal(str)
+    progressed = Signal(int, int, int)   # percent, current chunk, total chunks
 
     def __init__(
         self,
@@ -118,6 +120,7 @@ class SynthesisWorker(QObject):
                 seed=self.seed,
                 language=self.language,
                 voice=self.voice,
+                progress=lambda f, chunk, chunks: self.progressed.emit(int(f * 100), chunk, chunks),
             )
             self.finished.emit(result)
         except TTSEngineError as e:
@@ -149,6 +152,7 @@ class MainWindow(QMainWindow):
         # destroy them while they're running on the worker thread.
         self._loader_worker: ModelLoaderWorker | None = None
         self._synth_worker: SynthesisWorker | None = None
+        self._synth_started = 0.0   # monotonic time, for remaining-time estimate
         self._load_timeouts: list[QTimer] = []
 
         self.setWindowTitle("Μετατροπέας Κειμένου σε Ομιλία - Greek TTS (Moira)")
@@ -274,13 +278,20 @@ class MainWindow(QMainWindow):
 
         root.addLayout(action_row)
 
-        # Indeterminate progress bar (for load + synthesis)
+        # Progress bar: indeterminate during model load, percent during synthesis
+        progress_row = QHBoxLayout()
+        progress_row.setSpacing(10)
         self.progress = QProgressBar()
         self.progress.setVisible(False)
         self.progress.setRange(0, 0)
         self.progress.setMaximumHeight(4)
         self.progress.setTextVisible(False)
-        root.addWidget(self.progress)
+        progress_row.addWidget(self.progress, 1)
+        self.progress_label = QLabel()
+        self.progress_label.setObjectName("progressLabel")
+        self.progress_label.setVisible(False)
+        progress_row.addWidget(self.progress_label)
+        root.addLayout(progress_row)
 
         self.status = QStatusBar()
         self.setStatusBar(self.status)
@@ -403,10 +414,12 @@ class MainWindow(QMainWindow):
         self.player.stop()
         self.player.setSource(QUrl())
 
-        self._set_busy(
-            True,
-            msg="Γίνεται μετατροπή… (Orpheus παράγει tokens autoregressive ~5–15s)",
-        )
+        self._set_busy(True, msg="Γίνεται μετατροπή…")
+        self.progress.setRange(0, 100)
+        self.progress.setValue(0)
+        self.progress_label.setText("0%")
+        self.progress_label.setVisible(True)
+        self._synth_started = time.monotonic()
 
         self._synth_thread = QThread(self)
         self._synth_worker = SynthesisWorker(
@@ -426,6 +439,7 @@ class MainWindow(QMainWindow):
         self._synth_thread.started.connect(self._synth_worker.run)
         self._synth_worker.finished.connect(self._on_synth_done)
         self._synth_worker.failed.connect(self._on_synth_failed)
+        self._synth_worker.progressed.connect(self._on_synth_progress)
         self._synth_worker.finished.connect(self._synth_thread.quit)
         self._synth_worker.failed.connect(self._synth_thread.quit)
         self._synth_thread.finished.connect(self._synth_worker.deleteLater)
@@ -436,6 +450,26 @@ class MainWindow(QMainWindow):
     def _on_synth_thread_finished(self) -> None:
         self._synth_thread = None
         self._synth_worker = None
+
+    def _on_synth_progress(self, percent: int, chunk: int, chunks: int) -> None:
+        self.progress.setValue(percent)
+        self.progress_label.setText(f"{percent}%")
+        msg = f"Γίνεται μετατροπή… {percent}%"
+        if chunks > 1:
+            msg += f" · τμήμα {chunk}/{chunks}"
+        # Remaining-time estimate from elapsed time; too noisy below a few percent
+        if 3 <= percent < 100:
+            elapsed = time.monotonic() - self._synth_started
+            remaining = elapsed * (100 - percent) / percent
+            msg += f" · απομένουν ~{self._format_seconds(remaining)}"
+        self._set_status(msg, info=True)
+
+    @staticmethod
+    def _format_seconds(seconds: float) -> str:
+        seconds = int(round(seconds))
+        if seconds < 60:
+            return f"{seconds} s"
+        return f"{seconds // 60} λ {seconds % 60:02d} s"
 
     def _on_synth_done(self, path: Path) -> None:
         self.last_output = path
@@ -482,6 +516,9 @@ class MainWindow(QMainWindow):
 
     def _set_busy(self, busy: bool, msg: str | None = None) -> None:
         self.progress.setVisible(busy)
+        # Default to indeterminate; synthesis switches to percent afterwards
+        self.progress.setRange(0, 0)
+        self.progress_label.setVisible(False)
         self.text_edit.setReadOnly(busy)
         self.format_combo.setEnabled(not busy)
         self.language_combo.setEnabled(not busy)
@@ -602,6 +639,12 @@ class MainWindow(QMainWindow):
             QProgressBar::chunk {
                 background: #14233a;
                 border-radius: 2px;
+            }
+            QLabel#progressLabel {
+                font-size: 12px;
+                font-weight: 600;
+                color: #14233a;
+                min-width: 36px;
             }
             QStatusBar {
                 background: transparent;

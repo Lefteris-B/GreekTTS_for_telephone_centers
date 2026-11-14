@@ -26,6 +26,10 @@ import subprocess
 import tempfile
 import wave
 from pathlib import Path
+from typing import Callable
+
+# progress(fraction 0..1, current chunk 1-based, total chunks)
+ProgressCallback = Callable[[float, int, int], None]
 
 
 # Model repos
@@ -76,6 +80,10 @@ DEFAULT_ENGLISH_VOICE = "tara"
 # max_new_tokens=1200 cap. Chunks are joined with a short pause.
 MAX_CHUNK_CHARS = 150
 CHUNK_PAUSE_SECONDS = 0.25
+
+# Initial guess of audio tokens generated per input character, used to
+# estimate progress within a chunk. Refined from real output as chunks finish.
+TOKENS_PER_CHAR_ESTIMATE = 9.0
 
 # Sentence ends: . ! ? … and ; / ; (Greek question mark, ASCII and U+037E).
 _SENTENCE_END = re.compile(r"(?<=[.!?…;;])\s+")
@@ -237,12 +245,15 @@ class GreekTTSEngine:
         seed: int | None = None,
         language: str = DEFAULT_LANGUAGE,
         voice: str = DEFAULT_ENGLISH_VOICE,
+        progress: ProgressCallback | None = None,
     ) -> Path:
         """
         Synthesize text and write a telephony-ready WAV to output_path.
 
         `language` is "el" (Greek LoRA voice) or "en" (base Orpheus).
         `voice` picks the Orpheus English voice and is ignored for Greek.
+        `progress`, if given, is called on this thread as work advances (only
+        when the whole percentage changes) and once with 1.0 at the end.
         Returns output_path on success, raises TTSEngineError on failure.
 
         Generation is sampled (non-deterministic). Pass `seed` to reproduce
@@ -260,12 +271,23 @@ class GreekTTSEngine:
             raise TTSEngineError(f"Άγνωστη φωνή '{voice}'. Έγκυρες: {ENGLISH_VOICES}")
 
         output_path = Path(output_path)
+        chunks = split_text(text)
+
+        # Throttle: generation reports every token, callers only need whole percents
+        last_percent = -1
+
+        def report(fraction: float, chunk: int, chunks: int) -> None:
+            nonlocal last_percent
+            percent = int(fraction * 100)
+            if progress is not None and percent != last_percent:
+                last_percent = percent
+                progress(fraction, chunk, chunks)
 
         tmp_raw = Path(tempfile.mkstemp(suffix=".wav")[1])
         try:
             try:
                 self._synthesize_to_wav(
-                    text=text,
+                    chunks=chunks,
                     out_path=tmp_raw,
                     temperature=temperature,
                     top_p=top_p,
@@ -274,6 +296,7 @@ class GreekTTSEngine:
                     seed=seed,
                     language=language,
                     voice=voice,
+                    progress=report,
                 )
             except TTSEngineError:
                 raise
@@ -284,6 +307,7 @@ class GreekTTSEngine:
                 ) from e
 
             self._convert(tmp_raw, output_path, fmt)
+            report(1.0, len(chunks), len(chunks))
         finally:
             tmp_raw.unlink(missing_ok=True)
 
@@ -293,7 +317,7 @@ class GreekTTSEngine:
 
     def _synthesize_to_wav(
         self,
-        text: str,
+        chunks: list[str],
         out_path: Path,
         temperature: float,
         top_p: float,
@@ -302,6 +326,7 @@ class GreekTTSEngine:
         seed: int | None,
         language: str,
         voice: str,
+        progress: ProgressCallback,
     ) -> None:
         import numpy as np
 
@@ -314,21 +339,43 @@ class GreekTTSEngine:
         # Generate each chunk separately, then join with silence in between
         pause = np.zeros(int(SNAC_OUTPUT_RATE * CHUNK_PAUSE_SECONDS), dtype="int16")
         parts = []
+
+        # Progress is weighted by characters. Within a chunk we don't know how
+        # many tokens the model will produce, so estimate from its length and
+        # the tokens-per-char rate observed so far; cap at 99% of the chunk
+        # until it actually finishes.
+        total_chars = sum(len(c) for c in chunks)
+        done_chars = 0
+        done_tokens = 0
+
         # English runs on the base model: switch the Greek LoRA off for the
         # duration and always switch it back on, even if generation fails.
         if language == "en":
             self._model.disable_adapters()
         try:
-            for i, chunk in enumerate(split_text(text)):
+            for i, chunk in enumerate(chunks):
                 if i > 0:
                     parts.append(pause)
-                parts.append(self._generate_pcm(
+
+                rate = done_tokens / done_chars if done_chars else TOKENS_PER_CHAR_ESTIMATE
+                expected = min(len(chunk) * rate, max_new_tokens)
+
+                def on_token(n: int, start=done_chars, size=len(chunk),
+                             expected=expected, chunk_no=i + 1) -> None:
+                    within = min(n / expected, 0.99)
+                    progress((start + size * within) / total_chars, chunk_no, len(chunks))
+
+                pcm, n_tokens = self._generate_pcm(
                     text=f"{voice}: {chunk}" if language == "en" else chunk,
                     temperature=temperature,
                     top_p=top_p,
                     repetition_penalty=repetition_penalty,
                     max_new_tokens=max_new_tokens,
-                ))
+                    on_token=on_token,
+                )
+                parts.append(pcm)
+                done_chars += len(chunk)
+                done_tokens += n_tokens
         finally:
             if language == "en":
                 self._model.enable_adapters()
@@ -347,8 +394,14 @@ class GreekTTSEngine:
         top_p: float,
         repetition_penalty: float,
         max_new_tokens: int,
+        on_token: Callable[[int], None],
     ):
-        """Generate one chunk of text and return 16-bit PCM samples (numpy)."""
+        """
+        Generate one chunk of text. Returns (16-bit PCM samples as numpy,
+        number of tokens generated). Calls on_token(tokens_so_far) per step.
+        """
+        from transformers import StoppingCriteria, StoppingCriteriaList
+
         torch = self._torch
 
         # Tokenize input text and wrap with the GreekTTS framing tokens:
@@ -358,6 +411,14 @@ class GreekTTSEngine:
         end_t = torch.tensor([[END_OF_TEXT, END_OF_HUMAN]], dtype=torch.int64)
         wrapped = torch.cat([start_t, input_ids, end_t], dim=1)
         attn_mask = torch.ones_like(wrapped)
+        prompt_len = wrapped.shape[1]
+
+        # A stopping criterion that never stops: generate() calls it after
+        # every token, which makes it a cheap per-step progress hook.
+        class ReportProgress(StoppingCriteria):
+            def __call__(self, input_ids, scores, **kwargs):
+                on_token(input_ids.shape[1] - prompt_len)
+                return torch.zeros(input_ids.shape[0], dtype=torch.bool, device=input_ids.device)
 
         # Generate audio tokens autoregressively
         with torch.no_grad():
@@ -371,6 +432,7 @@ class GreekTTSEngine:
                 repetition_penalty=repetition_penalty,
                 num_return_sequences=1,
                 eos_token_id=END_OF_AI,
+                stopping_criteria=StoppingCriteriaList([ReportProgress()]),
                 use_cache=True,
             )
 
@@ -417,7 +479,7 @@ class GreekTTSEngine:
             audio_hat = self._snac.decode(codes)
 
         audio = audio_hat.detach().squeeze().cpu().float().numpy().clip(-1.0, 1.0)
-        return (audio * 32767.0).astype("int16")
+        return (audio * 32767.0).astype("int16"), generated_ids.shape[1] - prompt_len
 
     @staticmethod
     def _convert(src: Path, dst: Path, fmt: str) -> None:
