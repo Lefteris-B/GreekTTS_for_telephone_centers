@@ -13,6 +13,7 @@ to fit on consumer GPUs like the RTX 2060/2070/3060/4060).
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from typing import Callable
@@ -23,6 +24,31 @@ from PySide6.QtWidgets import QApplication, QSplashScreen
 
 
 APP_DIR = Path(__file__).resolve().parent
+
+
+def _ensure_std_streams() -> None:
+    """
+    Give the app a stdout/stderr when it has none.
+
+    The Windows build is windowed (console=False), so sys.stdout and
+    sys.stderr are None. Libraries that write to them directly - unsloth's
+    banner, tqdm progress bars, transformers warnings - then crash with
+    "'NoneType' object has no attribute 'write'". Point both at a log file
+    instead, which also leaves users something to send when a load fails.
+    """
+    if sys.stdout is not None and sys.stderr is not None:
+        return
+    base = os.environ.get("LOCALAPPDATA") or str(Path.home())
+    log_path = Path(base) / "GreekTTS" / "greektts.log"
+    try:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        stream = open(log_path, "w", encoding="utf-8", errors="replace", buffering=1)
+    except OSError:
+        stream = open(os.devnull, "w", encoding="utf-8")
+    if sys.stdout is None:
+        sys.stdout = stream
+    if sys.stderr is None:
+        sys.stderr = stream
 
 
 SPLASH_TITLE = "Μετατροπέας Κειμένου σε Ομιλία"
@@ -132,6 +158,9 @@ def _warm_up_torch(status: Callable[[str], None]) -> None:
 
 
 def main() -> int:
+    # Before anything else runs, so every import below can print safely
+    _ensure_std_streams()
+
     app = QApplication(sys.argv)
     app.setApplicationName("Greek TTS")
     app.setOrganizationName("Greek TTS")

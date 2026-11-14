@@ -17,6 +17,7 @@ from __future__ import annotations
 import shutil
 import tempfile
 import time
+import traceback
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QThread, QTimer, QUrl, Signal
@@ -71,6 +72,7 @@ class ModelLoaderWorker(QObject):
             self.failed.emit(str(e))
         except Exception as e:
             print(f">>> ModelLoader: {type(e).__name__}: {e}", flush=True)
+            traceback.print_exc()
             self.failed.emit(f"Unexpected error: {e}")
 
 
@@ -126,6 +128,7 @@ class SynthesisWorker(QObject):
         except TTSEngineError as e:
             self.failed.emit(str(e))
         except Exception as e:
+            traceback.print_exc()
             self.failed.emit(f"Unexpected error: {e}")
 
 
