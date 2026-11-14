@@ -37,22 +37,28 @@ jobs:
           Write-Host "Pip:"
           python -m pip --version
 
-      # ----- Install PyTorch with CUDA 12.1 from PyTorch's index -----
+      # ----- Install PyTorch with CUDA 12.8 from PyTorch's index -----
       # Done separately because pip needs a different index URL for these
-      # wheels - they aren't on PyPI.
-      - name: Install PyTorch (CUDA 12.1)
+      # wheels - they aren't on PyPI. torchvision must be installed here too:
+      # unsloth pulls it in, and an unpinned torchvision from PyPI drags in
+      # the CPU-only torch wheel, silently replacing the CUDA build.
+      # torch/torchaudio 2.11 is the newest pair with Windows torchaudio wheels.
+      - name: Install PyTorch (CUDA 12.8)
         shell: pwsh
         run: |
+          $PSNativeCommandUseErrorActionPreference = $true
           python -m pip install --upgrade pip
-          pip install torch==2.5.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu121
+          pip install torch==2.11.0+cu128 torchvision==0.26.0+cu128 torchaudio==2.11.0+cu128 --index-url https://download.pytorch.org/whl/cu128
+          # Lock the CUDA builds so later installs can't swap them out
+          "torch==2.11.0+cu128`ntorchvision==0.26.0+cu128`ntorchaudio==2.11.0+cu128" | Out-File -Encoding ascii torch-constraints.txt
 
       # ----- Install everything else from requirements.txt -----
       - name: Install application dependencies
         shell: pwsh
         run: |
-          pip install -r requirements.txt
+          $PSNativeCommandUseErrorActionPreference = $true
           # bitsandbytes for Windows + 4-bit quantization
-          pip install bitsandbytes
+          pip install -r requirements.txt bitsandbytes -c torch-constraints.txt --extra-index-url https://download.pytorch.org/whl/cu128
 
       # ----- PyInstaller -----
       - name: Install PyInstaller
@@ -64,7 +70,9 @@ jobs:
         # before we burn 30 min on PyInstaller.
         shell: pwsh
         run: |
-          python -c "import torch; print('torch', torch.__version__)"
+          $PSNativeCommandUseErrorActionPreference = $true
+          python -c "import torch, sys; print('torch', torch.__version__, 'cuda', torch.version.cuda); sys.exit(0 if torch.version.cuda else 'torch is a CPU-only build')"
+          python -c "import torchaudio; print('torchaudio', torchaudio.__version__)"
           python -c "import PySide6; print('PySide6', PySide6.__version__)"
           python -c "import transformers; print('transformers', transformers.__version__)"
           python -c "import unsloth; print('unsloth imported')"
