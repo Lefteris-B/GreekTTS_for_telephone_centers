@@ -9,8 +9,8 @@ release. If you're a developer building from source, see the main README.
 
 - **Windows 10 or 11, 64-bit.**
 - **NVIDIA GPU with 4 GB+ VRAM** and a recent driver (release 525+, October 2022 or later).
-- **Internet connection on first launch** to download the ~2.5 GB of model files. After that, the app runs fully offline.
-- **~10 GB free disk space** (5 GB for the app, 2.5 GB for models, plus working space).
+- **Internet connection on first launch** to download the ~2.9 GB of model files. After that, the app runs fully offline.
+- **~10 GB free disk space** (5 GB for the app, 2.9 GB for models, plus working space).
 - **ffmpeg** installed and on your system PATH.
 
 ### Installing ffmpeg on Windows
@@ -32,7 +32,7 @@ release. If you're a developer building from source, see the main README.
 1. **Download all parts** `GreekTTS-windows-*.7z.001`, `.7z.002`, … from the [Releases page](../../releases) into the same folder. (The app bundles NVIDIA CUDA libraries, so it is split to fit GitHub's 2 GB file limit.)
 2. **Extract** with [7-Zip](https://www.7-zip.org/): right-click the `.7z.001` file → *7-Zip* → *Extract files…* and pick a permanent folder - for example `C:\GreekTTS`. Avoid Downloads or Desktop. 7-Zip joins the parts automatically.
 3. **Double-click `setup.cmd`** at the top of the extracted folder.
-   - The script installs ffmpeg automatically, installs Python if needed, and downloads the ~2.5 GB of model files.
+   - The script installs ffmpeg automatically, installs Python if needed, and downloads the ~2.9 GB of model files.
    - Total time: 10–20 minutes depending on your network.
    - If something fails partway, just run `setup.cmd` again - it resumes from where it stopped.
 4. When setup is done, **double-click `GreekTTS\GreekTTS.exe`** to launch the app.
@@ -52,7 +52,7 @@ If `setup.cmd` doesn't work for your environment (locked-down corporate machine,
      - Under "System variables", find `Path`, click "Edit", "New", paste `C:\ffmpeg\bin`, OK.
    - Open a fresh Command Prompt and run `ffmpeg -version` to confirm.
 
-2. **Launch `GreekTTS.exe`.** The first time, it will show a dialog asking to download ~2.5 GB of model files. Click OK and wait 5–15 minutes.
+2. **Launch `GreekTTS.exe`.** The first time, it will show a dialog asking to download ~2.9 GB of model files. Click OK and wait 5–15 minutes.
 
 3. For air-gapped machines, the models live in `%USERPROFILE%\.cache\huggingface\hub\`. Copy that folder from a connected machine to the same path on the target.
 
@@ -63,7 +63,7 @@ If `setup.cmd` doesn't work for your environment (locked-down corporate machine,
 The first time you run `GreekTTS.exe`:
 
 1. The window appears within a few seconds.
-2. A dialog warns that ~2.5 GB of model files need to download from Hugging Face. Click **OK**.
+2. A dialog warns that ~2.9 GB of model files need to download from Hugging Face. Click **OK**.
 3. Download takes 5–15 minutes depending on your internet speed. The status bar shows progress.
 4. When complete, the status bar shows **"Έτοιμο. Μοντέλο φορτωμένο σε GPU…"** - you're ready to use the app.
 
@@ -105,7 +105,7 @@ The model download stalled. Most common cause: corporate firewall blocking `hugg
 
 - **App folder:** wherever you extracted the zip. Contains `GreekTTS.exe` and bundled libraries.
 - **`config.json`:** in the same folder as the exe - your settings (default format, pitch, speed, etc.).
-- **Model cache:** `C:\Users\<you>\.cache\huggingface\hub\`. About 2.5 GB after first launch.
+- **Model cache:** `C:\Users\<you>\.cache\huggingface\hub\`. About 2.9 GB after first launch.
 
 To completely uninstall: delete the app folder and (optionally) the Hugging Face cache folder.
 

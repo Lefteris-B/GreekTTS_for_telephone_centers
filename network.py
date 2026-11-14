@@ -2,7 +2,7 @@
 Pre-flight cache checks for the GreekTTS-1.5 model stack.
 
 Three components must be downloaded on first launch:
-  - unsloth/orpheus-3b-0.1-ft           (~2 GB in 4-bit form, the slow one)
+  - unsloth/orpheus-3b-0.1-ft-unsloth-bnb-4bit (~2.4 GB, the slow one)
   - moiralabs/GreekTTS-1.5              (~389 MB LoRA adapter)
   - hubertsiuzdak/snac_24khz            (~80 MB SNAC vocoder)
 
@@ -15,7 +15,7 @@ from __future__ import annotations
 from pathlib import Path
 
 
-BASE_MODEL = "unsloth/orpheus-3b-0.1-ft"
+BASE_MODEL = "unsloth/orpheus-3b-0.1-ft-unsloth-bnb-4bit"
 LORA_REPO = "moiralabs/GreekTTS-1.5"
 SNAC_REPO = "hubertsiuzdak/snac_24khz"
 
@@ -44,12 +44,12 @@ def check_models_cached() -> tuple[bool, list[str]]:
     """
     missing: list[str] = []
 
-    # Orpheus base - check for the model weights file (different name in 4-bit form)
+    # Orpheus base - check for the model weights file
     if not (
         _is_cached(BASE_MODEL, "model.safetensors")
         or _is_cached(BASE_MODEL, "model.safetensors.index.json")
     ):
-        missing.append("Orpheus base (~2 GB)")
+        missing.append("Orpheus base (~2.4 GB)")
 
     # LoRA adapter - check inside the checkpoint subfolder
     if not _is_cached(LORA_REPO, "checkpoint-264000/adapter_model.safetensors"):
@@ -73,7 +73,7 @@ def model_warning_message(missing: list[str]) -> str:
         f"{items}\n\n"
         "Στη φόρτωση θα γίνει αυτόματη λήψη από το Hugging Face - "
         "απαιτείται σύνδεση internet στην πρώτη εκτέλεση. "
-        "Συνολικά έως ~2.5 GB. Η λήψη μπορεί να πάρει 5–15 λεπτά "
+        "Συνολικά έως ~2.9 GB. Η λήψη μπορεί να πάρει 5–15 λεπτά "
         "ανάλογα με την ταχύτητα του δικτύου.\n\n"
         "Μετά την πρώτη λήψη, η εφαρμογή λειτουργεί πλήρως offline."
     )

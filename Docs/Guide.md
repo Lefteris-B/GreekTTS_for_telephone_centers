@@ -46,7 +46,7 @@ Asterisk, FreeSWITCH, 3CX, or any PBX.
 - **GPU:** NVIDIA with **4 GB+ VRAM** (the app uses 4-bit quantization to fit on consumer GPUs). Verified on RTX 2070 Super (8 GB).
 - **CPU-only mode is NOT supported.** Synthesis would be impractically slow for the Orpheus 3B base model.
 - **RAM:** 8 GB system RAM.
-- **Disk:** ~3 GB for Python dependencies + ~2.5 GB for cached models = **~5.5 GB total**.
+- **Disk:** ~3 GB for Python dependencies + ~2.9 GB for cached models = **~6 GB total**.
 
 ---
 
@@ -81,11 +81,8 @@ source .venv/bin/activate          # macOS / Linux
 This is the one step that depends on your hardware. Pick the right command for your CUDA driver from [pytorch.org/get-started](https://pytorch.org/get-started/locally/). Examples:
 
 ```bash
-# NVIDIA GPU with CUDA 12.1
-pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
-
-# NVIDIA GPU with CUDA 12.8
-pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128
+# NVIDIA GPU with CUDA 12.8 (driver 570+; covers RTX 20xx through 50xx)
+pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cu128
 ```
 
 Verify CUDA is detected:
@@ -115,10 +112,10 @@ python app.py
 
 What happens on the very first launch:
 
-1. **Warm-up** in the terminal (~10–15 seconds). You'll see progress lines for torch, unsloth, transformers, and SNAC. This is normal and only this slow once.
-2. **Model download dialog.** The app warns you that ~2.5 GB of model files need to download. Click OK.
+1. **Warm-up** in the terminal (~10–15 seconds). You'll see progress lines for torch, bitsandbytes, transformers, and SNAC. This is normal and only this slow once.
+2. **Model download dialog.** The app warns you that ~2.9 GB of model files need to download. Click OK.
 3. **Background download** of three components from Hugging Face:
-   - `unsloth/orpheus-3b-0.1-ft` (~2 GB - the slow one, expect 5–10 minutes on typical broadband)
+   - `unsloth/orpheus-3b-0.1-ft-unsloth-bnb-4bit` (~2.4 GB - the slow one, expect 5–10 minutes on typical broadband)
    - `moiralabs/GreekTTS-1.5` (~389 MB)
    - `hubertsiuzdak/snac_24khz` (~80 MB)
 4. **Ready.** The status bar shows "Έτοιμο. Μοντέλο φορτωμένο σε GPU (4-bit, 24000 Hz)."
@@ -302,7 +299,7 @@ Pre-download the three components manually with the Hugging Face CLI:
 
 ```bash
 pip install -U "huggingface_hub[cli]"
-hf download unsloth/orpheus-3b-0.1-ft
+hf download unsloth/orpheus-3b-0.1-ft-unsloth-bnb-4bit
 hf download moiralabs/GreekTTS-1.5
 hf download hubertsiuzdak/snac_24khz
 ```
@@ -411,7 +408,7 @@ The honest list of what this stack does *not* do:
 ## Credits
 
 - **Voice model:** [Moira.AI GreekTTS-1.5](https://huggingface.co/moiralabs/GreekTTS-1.5) by Moira.AI
-- **Base model:** [Orpheus 3B](https://huggingface.co/unsloth/orpheus-3b-0.1-ft) (unsloth quantization)
+- **Base model:** [Orpheus 3B](https://huggingface.co/unsloth/orpheus-3b-0.1-ft-unsloth-bnb-4bit) (unsloth's pre-quantized 4-bit build)
 - **Vocoder:** [SNAC](https://huggingface.co/hubertsiuzdak/snac_24khz) by Hubert Siuzdak
 - **GUI framework:** PySide6 (Qt for Python)
 - **Audio post-processing:** ffmpeg

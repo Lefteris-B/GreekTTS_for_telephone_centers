@@ -3,9 +3,8 @@
 PyInstaller spec for Greek TTS - Windows build.
 
 Notes:
-  - One-folder build (not one-file): startup is much faster, antivirus
-    is much less likely to flag the result, and unsloth's runtime
-    code generation needs a writable working directory anyway.
+  - One-folder build (not one-file): startup is much faster and
+    antivirus is much less likely to flag the result.
   - We avoid bundling Hugging Face model weights - they auto-download
     to the user's HF cache on first launch and are reused thereafter.
   - Bundling CUDA libraries: torch's CUDA .dll files are huge but
@@ -33,9 +32,6 @@ hidden_imports = [
     "transformers.models.llama.modeling_llama",
     "transformers.models.auto",
     "tokenizers",
-    # unsloth and unsloth_zoo (the latter is imported indirectly)
-    "unsloth",
-    "unsloth_zoo",
     # peft - adapter loading uses runtime imports
     "peft",
     "peft.tuners.lora",
@@ -64,6 +60,9 @@ a = Analysis(
     binaries=binaries,
     datas=datas,
     hiddenimports=hidden_imports,
+    # snac decorates functions with @torch.jit.script, which compiles from
+    # the .py source at import time - ship it as source, not just bytecode.
+    module_collection_mode={"snac": "py"},
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -73,6 +72,10 @@ a = Analysis(
         "tkinter",
         "matplotlib",
         "scipy",  # not used; transformers may reference it conditionally
+        # transformers' generation code imports sklearn when it's installed,
+        # and sklearn needs the scipy excluded above. Exclude it too so
+        # transformers sees it as unavailable and skips it.
+        "sklearn",
         "PIL",    # ditto
         "pytest",
         "IPython",

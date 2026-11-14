@@ -36,7 +36,7 @@ def log(msg: str, indent: int = 0) -> None:
 
 
 # Models
-BASE_MODEL = "unsloth/orpheus-3b-0.1-ft"
+BASE_MODEL = "unsloth/orpheus-3b-0.1-ft-unsloth-bnb-4bit"
 LORA_ADAPTERS = "moiralabs/GreekTTS-1.5"
 SNAC_MODEL = "hubertsiuzdak/snac_24khz"
 
@@ -71,19 +71,19 @@ def main() -> int:
         log(f"FAIL: torch not installed: {e}")
         return 2
 
-    log("Phase 1b: importing unsloth (heavy import - can take 10–30s)...")
+    log("Phase 1b: importing bitsandbytes...")
     try:
-        from unsloth import FastLanguageModel
-        log("unsloth.FastLanguageModel imported", indent=1)
+        import bitsandbytes  # noqa: F401
+        log("bitsandbytes imported", indent=1)
     except ImportError as e:
-        log(f"FAIL: unsloth not installed.")
-        log(f"Install: pip install unsloth", indent=1)
+        log(f"FAIL: bitsandbytes not installed.")
+        log(f"Install: pip install bitsandbytes", indent=1)
         log(f"Error: {e}", indent=1)
         return 3
 
     log("Phase 1c: importing transformers, peft, snac...")
     try:
-        from transformers import AutoTokenizer
+        from transformers import AutoModelForCausalLM, AutoTokenizer
         from peft import PeftModel  # noqa: F401
         from snac import SNAC
         log("Other imports OK", indent=1)
@@ -97,11 +97,11 @@ def main() -> int:
     log("Loading in 4-bit quantization to fit consumer GPUs (~2 GB VRAM).", indent=1)
     log("First run downloads ~2 GB of quantized weights. Subsequent runs use cache.", indent=1)
     try:
-        model, _ = FastLanguageModel.from_pretrained(
-            model_name=BASE_MODEL,
-            max_seq_length=2048,
-            dtype=None,
-            load_in_4bit=True,   # was False; 8GB GPU can't hold fp16 + adapter
+        # BASE_MODEL is pre-quantized to 4-bit; 8GB GPU can't hold fp16 + adapter
+        model = AutoModelForCausalLM.from_pretrained(
+            BASE_MODEL,
+            dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16,
+            device_map="cuda",
         )
         log("Base Orpheus model loaded in 4-bit", indent=1)
         if torch.cuda.is_available():
@@ -161,7 +161,7 @@ def main() -> int:
     log(f'Text: "{TEST_TEXT}"', indent=1)
 
     try:
-        FastLanguageModel.for_inference(model)
+        model.eval()
 
         # Tokenize the text input
         input_ids = tokenizer(TEST_TEXT, return_tensors="pt").input_ids

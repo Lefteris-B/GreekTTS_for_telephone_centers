@@ -129,8 +129,8 @@ echo   Models are cached in: %USERPROFILE%\.cache\huggingface\hub
 echo   Downloads resume if interrupted - safe to re-run this script.
 echo.
 
-echo   Downloading Orpheus base model (~2 GB)...
-python -c "from huggingface_hub import snapshot_download; snapshot_download('unsloth/orpheus-3b-0.1-ft')"
+echo   Downloading Orpheus base model, 4-bit (~2.4 GB)...
+python -c "from huggingface_hub import snapshot_download; snapshot_download('unsloth/orpheus-3b-0.1-ft-unsloth-bnb-4bit')"
 if errorlevel 1 (
     echo   ERROR: download of Orpheus base failed.
     set "SETUP_FAILED=1"

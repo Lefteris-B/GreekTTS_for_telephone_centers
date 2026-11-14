@@ -27,7 +27,7 @@ the Orpheus 3B foundation model, with SNAC neural codec for audio decoding.
 - **GPU:** NVIDIA with **4 GB+ VRAM** (uses 4-bit quantization). Tested on RTX 2070 Super (8 GB).
 - **CPU-only mode is NOT supported.** Synthesis would be impractically slow.
 - **RAM:** 8 GB system RAM.
-- **Disk:** ~3 GB for Python deps + ~2.5 GB for models = **~5.5 GB total**.
+- **Disk:** ~3 GB for Python deps + ~2.9 GB for models = **~6 GB total**.
 
 ---
 
@@ -55,8 +55,8 @@ source .venv/bin/activate          # macOS / Linux
 Pick the right command for your CUDA driver from [pytorch.org/get-started](https://pytorch.org/get-started/locally/). Example:
 
 ```bash
-# NVIDIA GPU with CUDA 12.1
-pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
+# NVIDIA GPU with CUDA 12.8 (driver 570+; covers RTX 20xx through 50xx)
+pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cu128
 ```
 
 ### 4. Install the rest of the dependencies
@@ -77,10 +77,10 @@ python app.py
 ```
 
 **First launch will:**
-1. Warm up PyTorch + unsloth (~10–15 seconds, you'll see progress in the terminal).
-2. Show a dialog noting that ~2.5 GB of model components need to download. Click OK.
+1. Warm up PyTorch + transformers (~10–15 seconds, you'll see progress in the terminal).
+2. Show a dialog noting that ~2.9 GB of model components need to download. Click OK.
 3. Download the three model files automatically:
-   - `unsloth/orpheus-3b-0.1-ft` (~2 GB, the slow one - 5–10 min on typical broadband)
+   - `unsloth/orpheus-3b-0.1-ft-unsloth-bnb-4bit` (~2.4 GB, the slow one - 5–10 min on typical broadband)
    - `moiralabs/GreekTTS-1.5` (~389 MB)
    - `hubertsiuzdak/snac_24khz` (~80 MB)
 4. Show "Έτοιμο. Μοντέλο φορτωμένο σε GPU…" in the status bar when ready.
@@ -159,7 +159,7 @@ You may have other GPU processes running. Close them and try again. If you have 
 Pre-download the three components manually:
 ```bash
 pip install -U "huggingface_hub[cli]"
-hf download unsloth/orpheus-3b-0.1-ft
+hf download unsloth/orpheus-3b-0.1-ft-unsloth-bnb-4bit
 hf download moiralabs/GreekTTS-1.5
 hf download hubertsiuzdak/snac_24khz
 ```
@@ -179,7 +179,7 @@ This application bundles or relies on several third-party components, each under
 
 - Moira.AI GreekTTS-1.5 (the Greek LoRA adapter) - licensed under Apache License 2.0. See the model card. Cite as @misc{moira2025greektts15} per the citation block on the model page.
 - Orpheus 3B (canopylabs/orpheus-3b-0.1-ft) - the base TTS LLM, licensed under Apache License 2.0. See the model card. The card carries an explicit Model Misuse clause prohibiting impersonation without consent, misinformation or deception (including fake news or fraudulent calls), and any illegal or harmful activity. This is directly relevant for telephony deployments - read it before using this app in production.
-- unsloth/orpheus-3b-0.1-ft - the 4-bit quantized variant we actually load. Same Apache 2.0 license inherited from canopylabs. See the unsloth fork.
+- unsloth/orpheus-3b-0.1-ft-unsloth-bnb-4bit - the 4-bit quantized variant we actually load. Same Apache 2.0 license inherited from canopylabs. See the unsloth fork.
 - Meta Llama 3.2 3B - Orpheus is a fine-tune of Llama 3.2 3B Instruct, so the Llama 3.2 Community License flows through to anything derived from it, including this app. Key points: free commercial use is granted royalty-free, BUT (1) you must comply with Meta's Acceptable Use Policy which forbids deceptive/fraudulent practices, (2) you must include the attribution string "Llama 3.2 is licensed under the Llama 3.2 Community License, Copyright © Meta Platforms, Inc. All Rights Reserved." in distributions, and (3) organizations whose products exceed 700 million monthly active users must obtain a separate license from Meta. The MAU threshold is irrelevant for typical Greek call-center deployments but worth knowing exists.
 - SNAC vocoder (hubertsiuzdak/snac_24khz) - licensed under MIT License. See the model card and the SNAC paper.
 

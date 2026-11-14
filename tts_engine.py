@@ -2,7 +2,7 @@
 TTS engine: Moira.AI GreekTTS-1.5 pipeline.
 
 Loads three components:
-  1. unsloth/orpheus-3b-0.1-ft   - base Orpheus LLM (loaded in 4-bit)
+  1. unsloth/orpheus-3b-0.1-ft-unsloth-bnb-4bit - base Orpheus LLM, pre-quantized to 4-bit
   2. moiralabs/GreekTTS-1.5      - Greek LoRA adapter on top of Orpheus
   3. hubertsiuzdak/snac_24khz    - SNAC neural codec (audio decoder)
 
@@ -32,8 +32,10 @@ from typing import Callable
 ProgressCallback = Callable[[float, int, int], None]
 
 
-# Model repos
-BASE_MODEL = "unsloth/orpheus-3b-0.1-ft"
+# Model repos. The base is Orpheus already quantized to 4-bit with
+# bitsandbytes (weights + tokenizer, ~2.4 GB), so plain transformers loads it
+# directly - no unsloth needed at inference time.
+BASE_MODEL = "unsloth/orpheus-3b-0.1-ft-unsloth-bnb-4bit"
 LORA_REPO = "moiralabs/GreekTTS-1.5"
 LORA_SUBFOLDER = "checkpoint-264000"
 SNAC_REPO = "hubertsiuzdak/snac_24khz"
@@ -159,15 +161,16 @@ class GreekTTSEngine:
         # broken - surface the error from the worker thread, not at app start.
         try:
             import torch
-            from unsloth import FastLanguageModel
-            from transformers import AutoTokenizer
+            from transformers import AutoModelForCausalLM, AutoTokenizer
+            import bitsandbytes  # noqa: F401  4-bit kernels for BASE_MODEL
+            import peft  # noqa: F401  backs model.load_adapter()
             from snac import SNAC
             from huggingface_hub import snapshot_download
         except ImportError as e:
             raise TTSEngineError(
                 "Λείπει εξάρτηση Python. Ελέγξτε τις οδηγίες στο README.\n"
                 f"Missing Python dependency: {e}\n"
-                "Required: torch, unsloth, transformers, peft, snac, huggingface_hub."
+                "Required: torch, transformers, bitsandbytes, peft, snac, huggingface_hub."
             ) from e
 
         if use_cuda and not torch.cuda.is_available():
@@ -179,13 +182,14 @@ class GreekTTSEngine:
             )
 
         # ─── Load base Orpheus in 4-bit ───
-        # 4-bit fits in ~2 GB VRAM, vs 6 GB for fp16. Required on 8 GB GPUs.
+        # 4-bit fits in ~2.5 GB VRAM, vs 6 GB for fp16. Required on 8 GB GPUs.
+        # Pre-Ampere cards (RTX 20xx) have no fast bfloat16, so compute in fp16.
+        dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
         try:
-            model, _ = FastLanguageModel.from_pretrained(
-                model_name=BASE_MODEL,
-                max_seq_length=2048,
-                dtype=None,
-                load_in_4bit=True,
+            model = AutoModelForCausalLM.from_pretrained(
+                BASE_MODEL,
+                dtype=dtype,
+                device_map="cuda",
             )
         except Exception as e:
             raise TTSEngineError(
@@ -207,8 +211,7 @@ class GreekTTSEngine:
                 f"Failed to load Greek LoRA adapter: {e}"
             ) from e
 
-        # Switch model to inference mode (Unsloth's optimized path)
-        FastLanguageModel.for_inference(model)
+        model.eval()
 
         # ─── Tokenizer (from base model - has the speech special tokens) ───
         try:
@@ -224,7 +227,6 @@ class GreekTTSEngine:
 
         # Cache references for use in synthesize()
         self._torch = torch
-        self._unsloth_fast = FastLanguageModel
         self._model = model
         self._tokenizer = tokenizer
         self._snac = snac
