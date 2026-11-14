@@ -15,16 +15,65 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Callable
 
-from PySide6.QtWidgets import QApplication
-
-from ui import MainWindow
+from PySide6.QtCore import QRect, Qt
+from PySide6.QtGui import QColor, QFont, QPainter, QPixmap
+from PySide6.QtWidgets import QApplication, QSplashScreen
 
 
 APP_DIR = Path(__file__).resolve().parent
 
 
-def _warm_up_torch() -> None:
+SPLASH_TITLE = "Μετατροπέας Κειμένου σε Ομιλία"
+SPLASH_SUBTITLE = "Greek TTS (Moira) - starting up, please wait…"
+
+
+class _Splash(QSplashScreen):
+    """QSplashScreen whose status message gets the same margins as the title."""
+
+    def drawContents(self, painter: QPainter) -> None:
+        painter.setPen(QColor("#4a5260"))
+        painter.drawText(
+            self.rect().adjusted(28, 0, -28, -24),
+            Qt.AlignLeft | Qt.AlignBottom,
+            self.message(),
+        )
+
+
+def _make_splash() -> QSplashScreen:
+    """
+    Build a splash screen shown while the heavy imports run.
+
+    Without it, nothing appears for ~10-15 seconds after launch and users
+    double-click again, starting extra copies. Drawn in code (colors match
+    MainWindow's stylesheet) so no image asset needs bundling.
+    """
+    width, height = 520, 200
+    pixmap = QPixmap(width, height)
+    pixmap.fill(QColor("#faf7f2"))
+
+    painter = QPainter(pixmap)
+    painter.setPen(QColor("#e3ddd2"))
+    painter.drawRect(0, 0, width - 1, height - 1)
+
+    title_font = QFont("Georgia", 18)
+    title_font.setWeight(QFont.DemiBold)
+    painter.setFont(title_font)
+    painter.setPen(QColor("#14233a"))
+    painter.drawText(QRect(28, 36, width - 56, 40), Qt.AlignLeft | Qt.AlignVCenter, SPLASH_TITLE)
+
+    painter.setFont(QFont("Segoe UI", 10))
+    painter.setPen(QColor("#6a7280"))
+    painter.drawText(QRect(28, 80, width - 56, 24), Qt.AlignLeft | Qt.AlignVCenter, SPLASH_SUBTITLE)
+    painter.end()
+
+    splash = _Splash(pixmap, Qt.WindowStaysOnTopHint)
+    splash.setFont(QFont("Segoe UI", 10))
+    return splash
+
+
+def _warm_up_torch(status: Callable[[str], None]) -> None:
     """
     Pre-initialize PyTorch, unsloth, and transformers on the main thread.
 
@@ -43,8 +92,12 @@ def _warm_up_torch() -> None:
 
     If anything isn't installed, this is a silent no-op - the engine will
     surface a clear error message when the user tries to load the model.
+
+    `status` is called before each stage so the splash screen can say
+    what's happening.
     """
     print("Initializing PyTorch + unsloth + transformers...", flush=True)
+    status("Φόρτωση PyTorch / CUDA…  (Loading PyTorch / CUDA)")
     try:
         import torch
         torch.cuda.is_available()  # forces lazy CUDA driver context init
@@ -55,6 +108,7 @@ def _warm_up_torch() -> None:
     except Exception as e:
         print(f"  torch warm-up skipped: {e}", flush=True)
 
+    status("Φόρτωση unsloth…  (Loading unsloth)")
     try:
         from unsloth import FastLanguageModel  # noqa: F401
         print("  unsloth imported", flush=True)
@@ -63,6 +117,7 @@ def _warm_up_torch() -> None:
     except Exception as e:
         print(f"  unsloth warm-up skipped: {e}", flush=True)
 
+    status("Φόρτωση transformers / SNAC…  (Loading transformers / SNAC)")
     try:
         from transformers import AutoTokenizer  # noqa: F401
         from snac import SNAC  # noqa: F401
@@ -81,12 +136,26 @@ def main() -> int:
     app.setApplicationName("Greek TTS")
     app.setOrganizationName("Greek TTS")
 
+    splash = _make_splash()
+    splash.show()
+
+    def status(message: str) -> None:
+        splash.showMessage(message)
+        # Warm-up blocks the event loop; repaint the splash between stages
+        app.processEvents()
+
     # Must run AFTER QApplication is created (so we're on Qt's main thread)
     # and BEFORE MainWindow is shown.
-    _warm_up_torch()
+    _warm_up_torch(status)
+
+    status("Άνοιγμα παραθύρου…  (Opening main window)")
+    # Imported here, not at module top: ui pulls in tts_engine, and we want
+    # the splash on screen before any of that import work happens.
+    from ui import MainWindow
 
     window = MainWindow(APP_DIR)
     window.show()
+    splash.finish(window)
     return app.exec()
 
 
